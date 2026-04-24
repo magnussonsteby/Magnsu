@@ -12,9 +12,19 @@ class UserCreate(BaseModel):
     role: UserRole
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
+
+
 class TeamCreate(BaseModel):
     name: str
     owner_id: str
+
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
 
 
 class TeamAddMember(BaseModel):

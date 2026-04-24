@@ -76,3 +76,12 @@ def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.delete("/{task_id}", status_code=204)
+def delete_task(task_id: str, db: Session = Depends(get_db)):
+    task = db.get(TaskDB, task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    db.delete(task)
+    db.commit()

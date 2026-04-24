@@ -54,3 +54,12 @@ def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depend
     db.commit()
     db.refresh(project)
     return project
+
+
+@router.delete("/{project_id}", status_code=204)
+def delete_project(project_id: str, db: Session = Depends(get_db)):
+    project = db.get(ProjectDB, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    db.delete(project)
+    db.commit()
