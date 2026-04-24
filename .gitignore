@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+magnsu.db
+.pytest_cache/
+.coverage
+htmlcov/
