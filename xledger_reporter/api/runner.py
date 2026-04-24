@@ -58,7 +58,8 @@ def browser_is_open() -> bool:
 
 def get_playbook() -> list[dict]:
     try:
-        return load_config().get("playbook", [])
+        cfg = load_config()
+        return [s for s in cfg.get("playbook", []) if s.get("text")]
     except Exception:
         return []
 
@@ -255,38 +256,25 @@ def _send_outlook(subject: str, recipients: list[str], html_body: str, screensho
     mail.Send()
 
 
-def _build_playbook(clicks: list[dict], login_url: str) -> list[dict]:
+def _build_playbook(clicks: list[dict]) -> list[dict]:
     """
     Convert raw click log into a clean playbook.
-    Groups clicks by URL; skips login-page clicks (handled separately).
+    Keeps unique meaningful click labels in order.
     """
-    playbook = []
-    seen_urls = set()
-    login_host = login_url.rstrip("/")
-
+    seen = set()
+    steps = []
     for c in clicks:
-        url = c.get("url", "")
-        text = c.get("text", "").strip()
-        tag = c.get("tag", "")
-
-        # Skip login page interactions
-        if login_host in url and ("password" in url.lower() or not playbook):
-            continue
-        # Skip very short or pure-whitespace labels
+        text = c.get("text", "").strip().replace("\n", " ")
+        tag  = c.get("tag", "")
+        # Skip empty, single-char, or pure-noise labels
         if len(text) < 2:
             continue
-        # Skip obvious noise (close buttons on cookie banners already handled)
-        if text.lower() in {"accept", "accept all", "godta", "ok", "×", "x"}:
+        key = text.lower()
+        if key in seen:
             continue
-
-        if url not in seen_urls:
-            seen_urls.add(url)
-            playbook.append({"url": url, "clicks": []})
-
-        if playbook and text not in [c2["text"] for c2 in playbook[-1]["clicks"]]:
-            playbook[-1]["clicks"].append({"text": text, "tag": tag})
-
-    return playbook
+        seen.add(key)
+        steps.append({"text": text, "tag": tag})
+    return steps
 
 
 # ---------------------------------------------------------------------------
@@ -342,8 +330,8 @@ async def manual_login() -> AsyncGenerator[str, None]:
         await asyncio.sleep(2)
         await _dismiss_popup(_manual_page)
 
-        # Reinject recorder (login may have navigated to a new page)
-        await _manual_page.evaluate(_RECORDER_JS)
+        # Reset recorder NOW so only the user's navigation steps are captured
+        await _manual_page.evaluate(_RECORDER_JS + "\nwindow._xrClicks = [];")
 
         yield "data: READY: Logged in! Navigate to your report in the browser window, then click Capture & Send here\n\n"
 
@@ -375,13 +363,16 @@ async def manual_capture() -> AsyncGenerator[str, None]:
         # Collect recorded clicks from the browser
         try:
             raw_clicks = await _manual_page.evaluate("() => window._xrClicks || []")
-            playbook = _build_playbook(raw_clicks, login_url)
+            playbook = _build_playbook(raw_clicks)
             if playbook:
                 config["playbook"] = playbook
                 save_config(config)
-                yield f"data: Recorded {sum(len(s['clicks']) for s in playbook)} steps across {len(playbook)} page(s) — will run automatically next time\n\n"
-        except Exception:
-            pass  # Recording is best-effort
+                labels = ", ".join(s["text"] for s in playbook[:6])
+                yield f"data: Recorded {len(playbook)} step(s): {labels} — will run automatically next time\n\n"
+            else:
+                yield "data: Note: no steps were recorded (clicks may not have been detected)\n\n"
+        except Exception as ex:
+            yield f"data: Note: recording failed ({ex})\n\n"
 
         screenshot, report_body = await _capture_page(_manual_page)
 
@@ -473,37 +464,34 @@ async def run_report() -> AsyncGenerator[str, None]:
             if playbook:
                 yield f"data: Replaying {len(playbook)} recorded step(s)...\n\n"
                 for step in playbook:
-                    step_url = step.get("url", "")
-                    clicks = step.get("clicks", [])
-
-                    if step_url and page.url != step_url:
-                        yield f"data: Navigating to recorded page...\n\n"
+                    text = step.get("text", "")
+                    tag  = step.get("tag", "")
+                    if not text:
+                        continue
+                    yield f"data: Clicking '{text}'...\n\n"
+                    # Try with the recorded tag first, then fall back to any element
+                    selectors = []
+                    if tag:
+                        selectors.append(f"{tag}:has-text('{text}')")
+                    selectors += [
+                        f"button:has-text('{text}')",
+                        f"a:has-text('{text}')",
+                        f"[role='menuitem']:has-text('{text}')",
+                        f"*:has-text('{text}')",
+                    ]
+                    clicked = False
+                    for sel in selectors:
+                        if await _try_click(page, sel, timeout=4000):
+                            clicked = True
+                            break
+                    if clicked:
+                        await asyncio.sleep(2)
                         try:
-                            await page.goto(step_url, timeout=20000)
-                            await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                            await asyncio.sleep(2)
-                        except Exception:
+                            await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                        except PWTimeout:
                             pass
-
-                    for click in clicks:
-                        text = click.get("text", "")
-                        tag = click.get("tag", "")
-                        if not text:
-                            continue
-                        yield f"data: Clicking '{text}'...\n\n"
-                        sel = f"{tag}:has-text('{text}')" if tag else f"*:has-text('{text}')"
-                        clicked = await _try_click(page, sel, timeout=5000)
-                        if not clicked:
-                            # Try any element
-                            clicked = await _try_click(page, f"*:has-text('{text}')", timeout=3000)
-                        if clicked:
-                            await asyncio.sleep(2)
-                            try:
-                                await page.wait_for_load_state("domcontentloaded", timeout=10000)
-                            except PWTimeout:
-                                pass
-                        else:
-                            yield f"data: Note: could not find '{text}' — continuing\n\n"
+                    else:
+                        yield f"data: Note: could not find '{text}' — continuing\n\n"
 
             elif menu_path:
                 # Fall back to menu_path navigation
