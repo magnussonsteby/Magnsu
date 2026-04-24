@@ -19,7 +19,7 @@ body {
   padding-bottom: 84px;
 }
 
-/* ── Tab bar ── */
+/* -- Tab bar -- */
 .tab-bar {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px;
@@ -39,7 +39,7 @@ body {
 .tab-item.active { color: #007AFF; }
 .tab-item svg { width: 26px; height: 26px; stroke-linecap: round; stroke-linejoin: round; }
 
-/* ── Panels ── */
+/* -- Panels -- */
 .panel { display: none; padding: 20px 16px 8px; }
 .panel.active { display: block; }
 
@@ -48,14 +48,14 @@ body {
   margin-bottom: 20px; color: #1C1C1E;
 }
 
-/* ── Cards ── */
+/* -- Cards -- */
 .card {
   background: #fff; border-radius: 16px;
   padding: 16px; margin-bottom: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
 
-/* ── Forms ── */
+/* -- Forms -- */
 .form-group { margin-bottom: 14px; }
 .form-group:last-of-type { margin-bottom: 0; }
 
@@ -82,7 +82,7 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
   margin-top: 3px; pointer-events: none;
 }
 
-/* ── Buttons ── */
+/* -- Buttons -- */
 .btn {
   width: 100%; padding: 15px; border: none; border-radius: 14px;
   font-size: 17px; font-weight: 600; cursor: pointer;
@@ -94,7 +94,7 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 .btn-danger  { background: #FF3B30; color: #fff; }
 .btn:disabled { background: #C7C7CC; cursor: not-allowed; }
 
-/* ── Summary card ── */
+/* -- Summary card -- */
 .summary-card {
   background: linear-gradient(135deg, #007AFF 0%, #0040CC 100%);
   color: #fff; border-radius: 18px; padding: 22px 20px; margin-bottom: 16px;
@@ -104,7 +104,7 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 .summary-card .s-value { font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
 .summary-card .s-sub   { font-size: 14px; opacity: 0.75; margin-top: 4px; }
 
-/* ── Entry rows ── */
+/* -- Entry rows -- */
 .entry-row {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 0; border-bottom: 1px solid #F2F2F7;
@@ -119,7 +119,7 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
   padding: 4px 0;
 }
 
-/* ── Badges ── */
+/* -- Badges -- */
 .badge {
   display: inline-block; padding: 3px 10px; border-radius: 20px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
@@ -130,13 +130,13 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 .b-red    { background: #FFE8E7; color: #CC1A15; }
 .b-gray   { background: #F0F0F5; color: #555; }
 
-/* ── Section header ── */
+/* -- Section header -- */
 .section-header {
   font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
   margin: 24px 0 10px; color: #1C1C1E;
 }
 
-/* ── Toast ── */
+/* -- Toast -- */
 #toast {
   position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
   background: #1C1C1E; color: #fff; padding: 12px 22px;
@@ -146,16 +146,16 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 }
 #toast.show { opacity: 1; }
 
-/* ── Empty state ── */
+/* -- Empty state -- */
 .empty { text-align: center; padding: 48px 20px; color: #8E8E93; }
 .empty-icon { font-size: 44px; margin-bottom: 10px; }
 .empty-text { font-size: 16px; font-weight: 500; }
 
-/* ── Row groups ── */
+/* -- Row groups -- */
 .row-2 { display: flex; gap: 10px; }
 .row-2 > * { flex: 1; }
 
-/* ── Spinner ── */
+/* -- Spinner -- */
 .spinner {
   display: inline-block; width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
@@ -166,7 +166,7 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 </head>
 <body>
 
-<!-- ══════════════ LOG ══════════════ -->
+<!-- ============== LOG ============== -->
 <div id="panel-log" class="panel active">
   <div class="page-title">Log Hours</div>
   <div class="card">
@@ -196,14 +196,14 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
   </div>
 </div>
 
-<!-- ══════════════ HISTORY ══════════════ -->
+<!-- ============== HISTORY ============== -->
 <div id="panel-history" class="panel">
   <div class="page-title">History</div>
 
   <div class="summary-card">
     <div class="s-label">TOTAL HOURS</div>
-    <div class="s-value" id="h-total">—</div>
-    <div class="s-sub" id="h-count">Loading…</div>
+    <div class="s-value" id="h-total">-</div>
+    <div class="s-sub" id="h-count">Loading...</div>
   </div>
 
   <div class="card">
@@ -230,19 +230,19 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
   <div id="history-list"></div>
 </div>
 
-<!-- ══════════════ PROJECTS ══════════════ -->
+<!-- ============== PROJECTS ============== -->
 <div id="panel-projects" class="panel">
   <div class="page-title">Projects</div>
   <div id="projects-list"></div>
 </div>
 
-<!-- ══════════════ TEAM ══════════════ -->
+<!-- ============== TEAM ============== -->
 <div id="panel-team" class="panel">
   <div class="page-title">Team</div>
   <div id="team-content"></div>
 </div>
 
-<!-- ══════════════ TAB BAR ══════════════ -->
+<!-- ============== TAB BAR ============== -->
 <nav class="tab-bar">
   <div class="tab-item active" id="tab-log" onclick="switchTab('log')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -280,12 +280,12 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 <div id="toast"></div>
 
 <script>
-// ── Globals ──────────────────────────────────────────────────
+// -- Globals --------------------------------------------------
 let _users = [], _tasks = [], _projects = [];
 const _inited = {};
 let _activeTab = 'log';
 
-// ── API helper ───────────────────────────────────────────────
+// -- API helper -----------------------------------------------
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
@@ -297,7 +297,7 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// ── Toast ────────────────────────────────────────────────────
+// -- Toast ----------------------------------------------------
 function toast(msg, isError = false) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -307,7 +307,7 @@ function toast(msg, isError = false) {
   el._t = setTimeout(() => el.classList.remove('show'), 2800);
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+// -- Helpers --------------------------------------------------
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -330,10 +330,10 @@ async function loadBaseData() {
 
 function taskLabel(t) {
   const p = _projects.find(p => p.id === t.project_id);
-  return (p ? p.name + ' › ' : '') + t.title;
+  return (p ? p.name + ' > ' : '') + t.title;
 }
 
-// ── LOG TAB ──────────────────────────────────────────────────
+// -- LOG TAB --------------------------------------------------
 async function initLog() {
   await loadBaseData();
   setOptions('log-user', _users, 'id', 'name');
@@ -360,7 +360,7 @@ async function submitLog() {
       method: 'POST',
       body: JSON.stringify({ user_id, task_id, date, hours, notes }),
     });
-    toast('✓ ' + hours + 'h logged');
+    toast('OK ' + hours + 'h logged');
     document.getElementById('log-hours').value = '';
     document.getElementById('log-notes').value = '';
     // Reset history so it reloads next visit
@@ -373,7 +373,7 @@ async function submitLog() {
   }
 }
 
-// ── HISTORY TAB ──────────────────────────────────────────────
+// -- HISTORY TAB ----------------------------------------------
 async function initHistory() {
   await loadBaseData();
   const sel = document.getElementById('f-task');
@@ -405,7 +405,7 @@ async function loadHistory() {
   const list = document.getElementById('history-list');
 
   if (!entries.length) {
-    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No entries yet</div></div>';
+    list.innerHTML = '<div class="empty"><div class="empty-icon"></div><div class="empty-text">No entries yet</div></div>';
     return;
   }
 
@@ -418,8 +418,8 @@ async function loadHistory() {
       <div class="entry-row">
         <div>
           <div class="entry-title">${task ? task.title : 'Unknown task'}</div>
-          <div class="entry-sub">${proj ? proj.name + '  ·  ' : ''}${user ? user.name : ''}</div>
-          <div class="entry-sub">${fmtDate(e.date)}${e.notes ? '  ·  ' + e.notes : ''}</div>
+          <div class="entry-sub">${proj ? proj.name + '  -  ' : ''}${user ? user.name : ''}</div>
+          <div class="entry-sub">${fmtDate(e.date)}${e.notes ? '  -  ' + e.notes : ''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px">
           <div class="entry-hours">${e.hours}h</div>
@@ -441,13 +441,13 @@ async function deleteEntry(id) {
   }
 }
 
-// ── PROJECTS TAB ─────────────────────────────────────────────
+// -- PROJECTS TAB ---------------------------------------------
 async function initProjects() {
   await loadBaseData();
   const list = document.getElementById('projects-list');
 
   if (!_projects.length) {
-    list.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><div class="empty-text">No projects yet</div></div>';
+    list.innerHTML = '<div class="empty"><div class="empty-icon"></div><div class="empty-text">No projects yet</div></div>';
     return;
   }
 
@@ -478,7 +478,7 @@ async function initProjects() {
   }).join('');
 }
 
-// ── TEAM TAB ─────────────────────────────────────────────────
+// -- TEAM TAB -------------------------------------------------
 async function initTeam() {
   await loadBaseData();
   const teams = await api('/teams/');
@@ -503,13 +503,13 @@ async function initTeam() {
       return `
       <div class="card">
         <div style="font-size:18px;font-weight:800;margin-bottom:8px">${t.name}</div>
-        <div style="color:#6C6C70;font-size:14px">Owner: ${owner ? owner.name : '—'}</div>
+        <div style="color:#6C6C70;font-size:14px">Owner: ${owner ? owner.name : '-'}</div>
         <div style="color:#6C6C70;font-size:14px;margin-top:2px">${t.member_ids.length} member${t.member_ids.length !== 1 ? 's' : ''}</div>
       </div>`;
     }).join('')}`;
 }
 
-// ── TAB SWITCHING ────────────────────────────────────────────
+// -- TAB SWITCHING --------------------------------------------
 const tabInits = { log: initLog, history: initHistory, projects: initProjects, team: initTeam };
 
 async function switchTab(name) {
@@ -527,7 +527,7 @@ async function switchTab(name) {
   }
 }
 
-// ── Boot ─────────────────────────────────────────────────────
+// -- Boot -----------------------------------------------------
 _inited['log'] = true;
 initLog().catch(e => toast('Failed to load: ' + e.message, true));
 </script>
