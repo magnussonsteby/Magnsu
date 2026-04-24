@@ -5,7 +5,7 @@ echo ================================
 echo.
 
 echo Installing requirements...
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: pip failed. Make sure Python is installed and "Add to PATH" was checked.
@@ -15,7 +15,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Setting up database...
-alembic upgrade head
+python -m alembic upgrade head
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Database setup failed.
