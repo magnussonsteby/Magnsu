@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from db.base import Base, engine
-from api.routers import users, teams, projects, tasks
+from api.routers import users, teams, projects, tasks, time_entries
 
 
 @asynccontextmanager
@@ -18,3 +18,4 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(teams.router, prefix="/teams", tags=["teams"])
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+app.include_router(time_entries.router, prefix="/time-entries", tags=["time-entries"])

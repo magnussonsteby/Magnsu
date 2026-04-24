@@ -3,6 +3,7 @@ from .user import User
 from .team import Team
 from .project import Project
 from .task import Task
+from .time_entry import TimeEntry
 
 __all__ = [
     "UserRole",
@@ -13,4 +14,5 @@ __all__ = [
     "Team",
     "Project",
     "Task",
+    "TimeEntry",
 ]

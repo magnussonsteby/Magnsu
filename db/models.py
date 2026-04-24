@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Table
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, String, Table
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -68,3 +68,15 @@ class TaskDB(Base):
     assignee_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class TimeEntryDB(Base):
+    __tablename__ = "time_entries"
+
+    id = Column(String, primary_key=True, default=_new_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    hours = Column(Float, nullable=False)
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)

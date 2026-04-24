@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -103,3 +103,28 @@ class TaskOut(BaseModel):
     assignee_id: Optional[str]
     created_at: datetime
     updated_at: datetime
+
+
+class TimeEntryCreate(BaseModel):
+    user_id: str
+    task_id: str
+    date: date
+    hours: float
+    notes: Optional[str] = None
+
+
+class TimeEntryUpdate(BaseModel):
+    hours: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class TimeEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    task_id: str
+    date: date
+    hours: float
+    notes: Optional[str]
+    created_at: datetime
