@@ -15,97 +15,71 @@ body {
   padding: 20px 16px 40px;
 }
 
-.page-title {
-  font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
-  margin-bottom: 6px;
-}
-.page-sub {
-  font-size: 14px; color: #8E8E93; margin-bottom: 24px;
-}
+.page-title { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+.page-sub   { font-size: 14px; color: #8E8E93; margin-bottom: 24px; }
 
-.card {
-  background: #fff; border-radius: 16px;
-  padding: 16px; margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-}
-.card-title {
-  font-size: 17px; font-weight: 700; margin-bottom: 14px;
-  display: flex; justify-content: space-between; align-items: center;
-}
+.card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.card-title { font-size: 17px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
 
 .form-group { margin-bottom: 14px; }
 .form-group:last-of-type { margin-bottom: 0; }
-label {
-  display: block; font-size: 12px; font-weight: 600;
-  color: #6C6C70; margin-bottom: 6px;
-  text-transform: uppercase; letter-spacing: 0.4px;
-}
+label { display: block; font-size: 12px; font-weight: 600; color: #6C6C70; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
 input[type=text], input[type=email], input[type=password], textarea {
   width: 100%; padding: 13px 14px;
   border: 1.5px solid #E5E5EA; border-radius: 12px;
   font-size: 16px; color: #1C1C1E; background: #fff;
-  -webkit-appearance: none; appearance: none;
-  transition: border-color 0.15s;
+  -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
 }
 input:focus, textarea:focus { outline: none; border-color: #007AFF; }
 textarea { height: 80px; resize: none; font-size: 14px; }
 
-.btn {
-  width: 100%; padding: 15px; border: none; border-radius: 14px;
-  font-size: 17px; font-weight: 600; cursor: pointer;
-  transition: transform 0.1s, opacity 0.15s; margin-top: 4px;
-}
+.btn { width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.15s; margin-top: 4px; }
 .btn:active { transform: scale(0.98); opacity: 0.85; }
 .btn-primary { background: #007AFF; color: #fff; }
 .btn-green   { background: #34C759; color: #fff; }
+.btn-orange  { background: #FF9500; color: #fff; }
+.btn-red     { background: #FF3B30; color: #fff; }
+.btn-gray    { background: #F2F2F7; color: #1C1C1E; border: 1.5px solid #E5E5EA; }
 .btn:disabled { background: #C7C7CC; cursor: not-allowed; }
+.btn-sm      { padding: 11px; font-size: 15px; }
 
-/* Run button */
-#run-btn {
-  font-size: 20px; padding: 18px; border-radius: 16px;
-  letter-spacing: -0.3px;
-}
-
-/* Log output */
 #log-box {
-  background: #1C1C1E; border-radius: 14px;
-  padding: 16px; font-family: monospace; font-size: 13px;
-  color: #E5E5EA; min-height: 80px; max-height: 280px;
-  overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  background: #1C1C1E; border-radius: 14px; padding: 16px;
+  font-family: monospace; font-size: 13px; color: #E5E5EA;
+  min-height: 80px; max-height: 300px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
   display: none; margin-top: 12px;
 }
 #log-box.visible { display: block; }
-.log-ok    { color: #30D158; }
-.log-err   { color: #FF453A; }
-.log-info  { color: #E5E5EA; }
+.log-ok   { color: #30D158; }
+.log-err  { color: #FF453A; }
+.log-warn { color: #FF9F0A; }
+.log-info { color: #E5E5EA; }
 
-/* Status dot */
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot-gray   { background: #C7C7CC; }
-.dot-blue   { background: #007AFF; animation: pulse 1s infinite; }
-.dot-green  { background: #30D158; }
-.dot-red    { background: #FF453A; }
+.status-bar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #6C6C70; margin-bottom: 12px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-gray  { background: #C7C7CC; }
+.dot-blue  { background: #007AFF; animation: pulse 1s infinite; }
+.dot-green { background: #30D158; }
+
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-/* Toast */
-#toast {
-  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-  background: #1C1C1E; color: #fff; padding: 12px 22px;
-  border-radius: 22px; font-size: 14px; font-weight: 500;
-  z-index: 999; opacity: 0; transition: opacity 0.25s;
-  white-space: nowrap; pointer-events: none;
-}
+.badge-saved { font-size: 11px; background: #E5F7ED; color: #1D8348; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+.badge-recorded { font-size: 11px; background: #E5F1FF; color: #0056CC; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+
+.row-2 { display: flex; gap: 8px; }
+.row-2 > .btn { margin-top: 4px; }
+
+#toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: #1C1C1E; color: #fff; padding: 12px 22px; border-radius: 22px; font-size: 14px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.25s; white-space: nowrap; pointer-events: none; }
 #toast.show { opacity: 1; }
 
-.spinner {
-  display: inline-block; width: 20px; height: 20px;
-  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
-  border-radius: 50%; animation: spin 0.7s linear infinite;
-  vertical-align: middle; margin-right: 8px;
-}
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.badge-saved { font-size: 11px; background: #E5F7ED; color: #1D8348; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+.divider { border: none; border-top: 1px solid #F2F2F7; margin: 12px 0; }
 </style>
 </head>
 <body>
@@ -113,10 +87,41 @@ textarea { height: 80px; resize: none; font-size: 14px; }
 <div class="page-title">Xledger Reporter</div>
 <div class="page-sub">Capture a report and email it automatically</div>
 
-<!-- Run card -->
+<!-- Auto Run card -->
 <div class="card">
-  <button class="btn btn-green" id="run-btn" onclick="runReport()">Run Report &amp; Send Email</button>
+  <div class="card-title">
+    Auto Run
+    <span id="recorded-badge" class="badge-recorded" style="display:none">Steps recorded</span>
+  </div>
+  <div class="status-bar">
+    <div class="dot dot-gray" id="auto-dot"></div>
+    <span id="auto-status">Ready</span>
+  </div>
+  <button class="btn btn-green" id="auto-btn" onclick="runAuto()" style="font-size:18px;padding:16px">
+    Run Report &amp; Send Email
+  </button>
   <div id="log-box"></div>
+</div>
+
+<!-- Manual Mode card -->
+<div class="card">
+  <div class="card-title">Manual Mode</div>
+  <div style="font-size:14px;color:#3C3C43;margin-bottom:12px;line-height:1.5">
+    Use this the first time. The app logs in for you, then you navigate to the report yourself.
+    Your steps are <b>recorded</b> and replayed automatically next time.
+  </div>
+  <div class="row-2" id="manual-idle-btns">
+    <button class="btn btn-orange btn-sm" onclick="startManual()">Login &amp; Record</button>
+  </div>
+  <div id="manual-ready-btns" style="display:none">
+    <div style="font-size:14px;font-weight:600;color:#34C759;margin-bottom:10px">
+      Browser is open — navigate to your report, then click Capture.
+    </div>
+    <div class="row-2">
+      <button class="btn btn-green btn-sm" onclick="captureManual()">Capture &amp; Send</button>
+      <button class="btn btn-gray btn-sm" onclick="closeBrowser()">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- Settings card -->
@@ -139,14 +144,6 @@ textarea { height: 80px; resize: none; font-size: 14px; }
     <input type="password" id="cfg-pass" placeholder="Leave blank to keep existing">
   </div>
   <div class="form-group">
-    <label>Menu path to the report (use &gt; to separate levels)</label>
-    <input type="text" id="cfg-menu" placeholder="e.g. Reports &gt; Time Registration">
-  </div>
-  <div class="form-group">
-    <label>Button to click after opening report (optional)</label>
-    <input type="text" id="cfg-runbtn" placeholder="e.g. Run  or  Search  (leave blank if not needed)">
-  </div>
-  <div class="form-group">
     <label>Recipients (one email per line)</label>
     <textarea id="cfg-emails" placeholder="boss@company.com&#10;colleague@company.com"></textarea>
   </div>
@@ -155,32 +152,19 @@ textarea { height: 80px; resize: none; font-size: 14px; }
     <input type="text" id="cfg-subject" placeholder="Xledger Time Report">
   </div>
   <button class="btn btn-primary" onclick="saveConfig()">Save Settings</button>
-</div>
-
-<!-- How to use -->
-<div class="card">
-  <div class="card-title">How to use</div>
-  <div style="font-size:14px;color:#3C3C43;line-height:1.6">
-    <b>1.</b> Fill in your Xledger login details.<br><br>
-    <b>2.</b> In <b>Menu path</b>, type the menu names you click in Xledger to reach the report, separated by <b>&gt;</b>. For example: <i>Reports &gt; Time Registration</i><br><br>
-    <b>3.</b> If the report has a <b>Run</b> or <b>Search</b> button you need to click to generate the data, enter that button name too.<br><br>
-    <b>4.</b> Enter the email addresses of the recipients.<br><br>
-    <b>5.</b> Click <b>Run Report &amp; Send Email</b>. A browser window will open, log in to Xledger, click through the menus, capture the report, and send it via Outlook.<br><br>
-    <b>Note:</b> Outlook must be open and logged in on this PC.
-  </div>
+  <button class="btn btn-gray btn-sm" onclick="clearPlaybook()" style="margin-top:8px" id="clear-btn">Clear Recorded Steps</button>
 </div>
 
 <div id="toast"></div>
 
 <script>
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
+let _busy = false;
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || 'Request failed');
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || 'Request failed');
   }
   return res.json();
 }
@@ -191,51 +175,201 @@ function toast(msg, isError = false) {
   el.style.background = isError ? '#FF3B30' : '#1C1C1E';
   el.classList.add('show');
   clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+  el._t = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-// ---- Load config on page load ----
+function logBox() { return document.getElementById('log-box'); }
+
+function appendLog(msg, cls = 'log-info') {
+  const box = logBox();
+  box.classList.add('visible');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  const box = logBox();
+  box.innerHTML = '';
+  box.classList.remove('visible');
+}
+
+function streamSSE(url, { onMsg, onDone, onError }) {
+  const es = new EventSource(url);
+  es.onmessage = (e) => {
+    const msg = e.data;
+    if (msg.startsWith('DONE:')) {
+      appendLog(msg, 'log-ok');
+      es.close();
+      onDone && onDone(msg);
+    } else if (msg.startsWith('ERROR:')) {
+      appendLog(msg, 'log-err');
+      es.close();
+      onError && onError(msg);
+    } else if (msg.startsWith('WARNING:') || msg.startsWith('Note:')) {
+      appendLog(msg, 'log-warn');
+    } else if (msg.startsWith('READY:')) {
+      appendLog(msg, 'log-ok');
+      onMsg && onMsg(msg);
+    } else {
+      appendLog(msg, 'log-info');
+      onMsg && onMsg(msg);
+    }
+  };
+  es.onerror = () => {
+    appendLog('Connection lost.', 'log-err');
+    es.close();
+    onError && onError('Connection lost');
+  };
+  return es;
+}
+
+// ---- Status polling ----
+async function refreshStatus() {
+  try {
+    const s = await apiFetch('/api/status');
+    document.getElementById('recorded-badge').style.display = s.has_playbook ? 'inline' : 'none';
+    document.getElementById('clear-btn').style.display = s.has_playbook ? 'block' : 'none';
+    if (s.browser_open) {
+      document.getElementById('manual-idle-btns').style.display = 'none';
+      document.getElementById('manual-ready-btns').style.display = 'block';
+    } else {
+      document.getElementById('manual-idle-btns').style.display = 'flex';
+      document.getElementById('manual-ready-btns').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ---- Auto run ----
+function setAutoStatus(text, dotClass) {
+  document.getElementById('auto-status').textContent = text;
+  const dot = document.getElementById('auto-dot');
+  dot.className = 'dot ' + dotClass;
+}
+
+async function runAuto() {
+  if (_busy) return;
+  const s = await apiFetch('/api/status');
+  if (!s.config_exists) { toast('Save your settings first', true); return; }
+  _busy = true;
+  clearLog();
+  const btn = document.getElementById('auto-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running...';
+  setAutoStatus('Running...', 'dot-blue');
+
+  streamSSE('/api/run', {
+    onDone: () => {
+      _busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Run Report & Send Email';
+      setAutoStatus('Done', 'dot-green');
+      refreshStatus();
+      toast('Report sent!');
+    },
+    onError: (msg) => {
+      _busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Run Report & Send Email';
+      setAutoStatus('Error', 'dot-gray');
+      toast(msg.replace('ERROR: ', ''), true);
+    },
+  });
+}
+
+// ---- Manual mode ----
+async function startManual() {
+  if (_busy) return;
+  const s = await apiFetch('/api/status');
+  if (!s.config_exists) { toast('Save your settings first', true); return; }
+  _busy = true;
+  clearLog();
+  const btn = document.querySelector('#manual-idle-btns .btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Logging in...';
+
+  streamSSE('/api/login', {
+    onMsg: (msg) => {
+      if (msg.startsWith('READY:')) {
+        _busy = false;
+        btn.disabled = false;
+        btn.innerHTML = 'Login &amp; Record';
+        refreshStatus();
+      }
+    },
+    onDone: () => { _busy = false; btn.disabled = false; btn.innerHTML = 'Login &amp; Record'; refreshStatus(); },
+    onError: () => { _busy = false; btn.disabled = false; btn.innerHTML = 'Login &amp; Record'; },
+  });
+}
+
+async function captureManual() {
+  if (_busy) return;
+  _busy = true;
+  clearLog();
+  const btn = document.querySelector('#manual-ready-btns .btn-green');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Capturing...';
+
+  streamSSE('/api/capture', {
+    onDone: () => {
+      _busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Capture & Send';
+      refreshStatus();
+      toast('Report sent! Steps recorded for next time.');
+    },
+    onError: () => {
+      _busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Capture & Send';
+      refreshStatus();
+    },
+  });
+}
+
+async function closeBrowser() {
+  await apiFetch('/api/close', { method: 'POST' });
+  refreshStatus();
+  toast('Browser closed');
+}
+
+async function clearPlaybook() {
+  if (!confirm('Clear recorded steps? Auto Run will need a Manual Mode session to re-record them.')) return;
+  await apiFetch('/api/clear-playbook', { method: 'POST' });
+  refreshStatus();
+  toast('Recorded steps cleared');
+}
+
+// ---- Config ----
 async function loadConfig() {
   try {
-    const cfg = await api('/api/config');
+    const cfg = await apiFetch('/api/config');
     if (cfg.login_url && cfg.login_url !== 'https://www.xledger.net/')
       document.getElementById('cfg-loginurl').value = cfg.login_url;
     if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
-    if (cfg.menu_path && cfg.menu_path.length)
-      document.getElementById('cfg-menu').value = cfg.menu_path.join(' > ');
-    if (cfg.run_button)
-      document.getElementById('cfg-runbtn').value = cfg.run_button;
-    if (cfg.recipient_emails)
-      document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
-    if (cfg.email_subject)
-      document.getElementById('cfg-subject').value = cfg.email_subject;
-  } catch(e) { /* first run, no config yet */ }
+    if (cfg.recipient_emails) document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
+    if (cfg.email_subject)    document.getElementById('cfg-subject').value = cfg.email_subject;
+  } catch(e) {}
 }
 
-// ---- Save config ----
 async function saveConfig() {
-  const login_url  = document.getElementById('cfg-loginurl').value.trim() || 'https://www.xledger.net/';
-  const username   = document.getElementById('cfg-user').value.trim();
-  const password   = document.getElementById('cfg-pass').value;
-  const menuRaw    = document.getElementById('cfg-menu').value;
-  const run_button = document.getElementById('cfg-runbtn').value.trim();
-  const emailsRaw  = document.getElementById('cfg-emails').value;
-  const subject    = document.getElementById('cfg-subject').value.trim() || 'Xledger Time Report';
-
-  const menu_path = menuRaw.split('>').map(s => s.trim()).filter(Boolean);
+  const login_url        = document.getElementById('cfg-loginurl').value.trim() || 'https://www.xledger.net/';
+  const username         = document.getElementById('cfg-user').value.trim();
+  const password         = document.getElementById('cfg-pass').value;
+  const emailsRaw        = document.getElementById('cfg-emails').value;
+  const subject          = document.getElementById('cfg-subject').value.trim() || 'Xledger Time Report';
   const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
 
-  if (!username) { toast('Username is required', true); return; }
-  if (!menu_path.length) { toast('Menu path is required', true); return; }
+  if (!username)              { toast('Username is required', true); return; }
   if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
 
   try {
-    await api('/api/config', {
+    await apiFetch('/api/config', {
       method: 'POST',
-      body: JSON.stringify({
-        login_url, xledger_username: username, xledger_password: password,
-        menu_path, run_button, recipient_emails, email_subject: subject, headless: false,
-      }),
+      body: JSON.stringify({ login_url, xledger_username: username, xledger_password: password,
+        recipient_emails, email_subject: subject, headless: false }),
     });
     toast('Settings saved');
     document.getElementById('cfg-pass').value = '';
@@ -245,77 +379,9 @@ async function saveConfig() {
   } catch(e) { toast(e.message, true); }
 }
 
-// ---- Run report ----
-let _running = false;
-
-async function runReport() {
-  if (_running) return;
-
-  // Check config exists
-  const { exists } = await api('/api/config-exists');
-  if (!exists) {
-    toast('Save your settings first', true);
-    document.getElementById('cfg-user').focus();
-    return;
-  }
-
-  _running = true;
-  const btn = document.getElementById('run-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Running...';
-
-  const logBox = document.getElementById('log-box');
-  logBox.innerHTML = '';
-  logBox.classList.add('visible');
-
-  function appendLog(msg, cls = 'log-info') {
-    const line = document.createElement('div');
-    line.className = cls;
-    line.textContent = msg;
-    logBox.appendChild(line);
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-
-  try {
-    const evtSource = new EventSource('/api/run');
-    evtSource.onmessage = (e) => {
-      const msg = e.data;
-      if (msg.startsWith('DONE:')) {
-        appendLog(msg, 'log-ok');
-        evtSource.close();
-        btn.disabled = false;
-        btn.textContent = 'Run Report & Send Email';
-        _running = false;
-        toast('Report sent!');
-      } else if (msg.startsWith('ERROR:')) {
-        appendLog(msg, 'log-err');
-        evtSource.close();
-        btn.disabled = false;
-        btn.textContent = 'Run Report & Send Email';
-        _running = false;
-        toast(msg.replace('ERROR: ', ''), true);
-      } else if (msg.startsWith('WARNING:')) {
-        appendLog(msg, 'log-err');
-      } else {
-        appendLog(msg, 'log-info');
-      }
-    };
-    evtSource.onerror = () => {
-      appendLog('Connection lost. Check the server window.', 'log-err');
-      evtSource.close();
-      btn.disabled = false;
-      btn.textContent = 'Run Report & Send Email';
-      _running = false;
-    };
-  } catch(e) {
-    appendLog('ERROR: ' + e.message, 'log-err');
-    btn.disabled = false;
-    btn.textContent = 'Run Report & Send Email';
-    _running = false;
-  }
-}
-
 loadConfig();
+refreshStatus();
+setInterval(refreshStatus, 5000);
 </script>
 </body>
 </html>
