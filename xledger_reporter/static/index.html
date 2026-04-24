@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Xledger Reporter</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #F2F2F7; color: #1C1C1E;
+  max-width: 480px; margin: 0 auto; min-height: 100vh;
+  padding: 20px 16px 40px;
+}
+
+.page-title {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+.page-sub {
+  font-size: 14px; color: #8E8E93; margin-bottom: 24px;
+}
+
+.card {
+  background: #fff; border-radius: 16px;
+  padding: 16px; margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.card-title {
+  font-size: 17px; font-weight: 700; margin-bottom: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.form-group { margin-bottom: 14px; }
+.form-group:last-of-type { margin-bottom: 0; }
+label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: #6C6C70; margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+input[type=text], input[type=email], input[type=password], textarea {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid #E5E5EA; border-radius: 12px;
+  font-size: 16px; color: #1C1C1E; background: #fff;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s;
+}
+input:focus, textarea:focus { outline: none; border-color: #007AFF; }
+textarea { height: 80px; resize: none; font-size: 14px; }
+
+.btn {
+  width: 100%; padding: 15px; border: none; border-radius: 14px;
+  font-size: 17px; font-weight: 600; cursor: pointer;
+  transition: transform 0.1s, opacity 0.15s; margin-top: 4px;
+}
+.btn:active { transform: scale(0.98); opacity: 0.85; }
+.btn-primary { background: #007AFF; color: #fff; }
+.btn-green   { background: #34C759; color: #fff; }
+.btn:disabled { background: #C7C7CC; cursor: not-allowed; }
+
+/* Run button */
+#run-btn {
+  font-size: 20px; padding: 18px; border-radius: 16px;
+  letter-spacing: -0.3px;
+}
+
+/* Log output */
+#log-box {
+  background: #1C1C1E; border-radius: 14px;
+  padding: 16px; font-family: monospace; font-size: 13px;
+  color: #E5E5EA; min-height: 80px; max-height: 280px;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  display: none; margin-top: 12px;
+}
+#log-box.visible { display: block; }
+.log-ok    { color: #30D158; }
+.log-err   { color: #FF453A; }
+.log-info  { color: #E5E5EA; }
+
+/* Status dot */
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-gray   { background: #C7C7CC; }
+.dot-blue   { background: #007AFF; animation: pulse 1s infinite; }
+.dot-green  { background: #30D158; }
+.dot-red    { background: #FF453A; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+  background: #1C1C1E; color: #fff; padding: 12px 22px;
+  border-radius: 22px; font-size: 14px; font-weight: 500;
+  z-index: 999; opacity: 0; transition: opacity 0.25s;
+  white-space: nowrap; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+.spinner {
+  display: inline-block; width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.badge-saved { font-size: 11px; background: #E5F7ED; color: #1D8348; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page-title">Xledger Reporter</div>
+<div class="page-sub">Capture a report and email it automatically</div>
+
+<!-- Run card -->
+<div class="card">
+  <button class="btn btn-green" id="run-btn" onclick="runReport()">Run Report &amp; Send Email</button>
+  <div id="log-box"></div>
+</div>
+
+<!-- Settings card -->
+<div class="card">
+  <div class="card-title">
+    Settings
+    <span id="saved-badge" class="badge-saved" style="display:none">Saved</span>
+  </div>
+
+  <div class="form-group">
+    <label>Xledger Username / Email</label>
+    <input type="email" id="cfg-user" placeholder="you@company.com">
+  </div>
+  <div class="form-group">
+    <label>Xledger Password</label>
+    <input type="password" id="cfg-pass" placeholder="Leave blank to keep existing">
+  </div>
+  <div class="form-group">
+    <label>Report URL (paste from Xledger after opening the report)</label>
+    <input type="text" id="cfg-url" placeholder="https://www.xledger.net/Report/...">
+  </div>
+  <div class="form-group">
+    <label>Recipients (one email per line)</label>
+    <textarea id="cfg-emails" placeholder="boss@company.com&#10;colleague@company.com"></textarea>
+  </div>
+  <div class="form-group">
+    <label>Email Subject</label>
+    <input type="text" id="cfg-subject" placeholder="Xledger Weekly Report">
+  </div>
+  <button class="btn btn-primary" onclick="saveConfig()">Save Settings</button>
+</div>
+
+<!-- How to use -->
+<div class="card">
+  <div class="card-title">How to use</div>
+  <div style="font-size:14px;color:#3C3C43;line-height:1.6">
+    <b>1.</b> Fill in your Xledger login and the URL of the report you want to send.<br><br>
+    <b>2.</b> Open the report manually in Xledger, copy the URL from your browser address bar, and paste it into "Report URL".<br><br>
+    <b>3.</b> Enter the email addresses of the people who should receive the report.<br><br>
+    <b>4.</b> Click <b>Run Report &amp; Send Email</b>. A browser window will open, log in to Xledger, capture the report, and send it via Outlook.<br><br>
+    <b>Note:</b> Outlook must be open and logged in on this PC.
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'Request failed');
+  }
+  return res.json();
+}
+
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#FF3B30' : '#1C1C1E';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ---- Load config on page load ----
+async function loadConfig() {
+  try {
+    const cfg = await api('/api/config');
+    if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
+    if (cfg.report_url && cfg.report_url !== 'https://www.xledger.net/')
+      document.getElementById('cfg-url').value = cfg.report_url;
+    if (cfg.recipient_emails)
+      document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
+    if (cfg.email_subject)
+      document.getElementById('cfg-subject').value = cfg.email_subject;
+  } catch(e) { /* first run, no config yet */ }
+}
+
+// ---- Save config ----
+async function saveConfig() {
+  const username = document.getElementById('cfg-user').value.trim();
+  const password = document.getElementById('cfg-pass').value;
+  const report_url = document.getElementById('cfg-url').value.trim() || 'https://www.xledger.net/';
+  const emailsRaw = document.getElementById('cfg-emails').value;
+  const subject = document.getElementById('cfg-subject').value.trim() || 'Xledger Report';
+
+  const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
+
+  if (!username) { toast('Username is required', true); return; }
+  if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
+
+  try {
+    await api('/api/config', {
+      method: 'POST',
+      body: JSON.stringify({ xledger_username: username, xledger_password: password,
+        report_url, recipient_emails, email_subject: subject, headless: false }),
+    });
+    toast('Settings saved');
+    document.getElementById('cfg-pass').value = '';
+    const badge = document.getElementById('saved-badge');
+    badge.style.display = 'inline';
+    setTimeout(() => { badge.style.display = 'none'; }, 3000);
+  } catch(e) { toast(e.message, true); }
+}
+
+// ---- Run report ----
+let _running = false;
+
+async function runReport() {
+  if (_running) return;
+
+  // Check config exists
+  const { exists } = await api('/api/config-exists');
+  if (!exists) {
+    toast('Save your settings first', true);
+    document.getElementById('cfg-user').focus();
+    return;
+  }
+
+  _running = true;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running...';
+
+  const logBox = document.getElementById('log-box');
+  logBox.innerHTML = '';
+  logBox.classList.add('visible');
+
+  function appendLog(msg, cls = 'log-info') {
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = msg;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  try {
+    const evtSource = new EventSource('/api/run');
+    evtSource.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.startsWith('DONE:')) {
+        appendLog(msg, 'log-ok');
+        evtSource.close();
+        btn.disabled = false;
+        btn.textContent = 'Run Report & Send Email';
+        _running = false;
+        toast('Report sent!');
+      } else if (msg.startsWith('ERROR:')) {
+        appendLog(msg, 'log-err');
+        evtSource.close();
+        btn.disabled = false;
+        btn.textContent = 'Run Report & Send Email';
+        _running = false;
+        toast(msg.replace('ERROR: ', ''), true);
+      } else if (msg.startsWith('WARNING:')) {
+        appendLog(msg, 'log-err');
+      } else {
+        appendLog(msg, 'log-info');
+      }
+    };
+    evtSource.onerror = () => {
+      appendLog('Connection lost. Check the server window.', 'log-err');
+      evtSource.close();
+      btn.disabled = false;
+      btn.textContent = 'Run Report & Send Email';
+      _running = false;
+    };
+  } catch(e) {
+    appendLog('ERROR: ' + e.message, 'log-err');
+    btn.disabled = false;
+    btn.textContent = 'Run Report & Send Email';
+    _running = false;
+  }
+}
+
+loadConfig();
+</script>
+</body>
+</html>
