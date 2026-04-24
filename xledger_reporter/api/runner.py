@@ -54,6 +54,44 @@ async def _dismiss_cookies(page) -> None:
             continue
 
 
+async def _dismiss_popup(page) -> None:
+    """Close any in-page modal dialog or confirmation message."""
+    close_labels = [
+        "OK", "Close", "Lukk", "Confirm", "Bekreft",
+        "Yes", "Ja", "Accept", "Continue", "Fortsett",
+        "Got it", "Dismiss",
+    ]
+    # Also try generic modal close buttons (×, X)
+    close_selectors = [
+        "[role='dialog'] button",
+        ".modal button",
+        ".popup button",
+        ".dialog button",
+        "button.close",
+        "button[aria-label='Close']",
+        "button[aria-label='Lukk']",
+    ]
+    for label in close_labels:
+        for el_type in ["button", "a", "div", "span"]:
+            try:
+                el = page.locator(f"{el_type}:has-text('{label}')").first
+                if await el.is_visible(timeout=1500):
+                    await el.click()
+                    await asyncio.sleep(0.5)
+                    return
+            except Exception:
+                continue
+    for sel in close_selectors:
+        try:
+            el = page.locator(sel).first
+            if await el.is_visible(timeout=1500):
+                await el.click()
+                await asyncio.sleep(0.5)
+                return
+        except Exception:
+            continue
+
+
 async def _try_fill(page, selector: str, value: str, timeout: int = 5000) -> bool:
     try:
         el = page.locator(selector).first
@@ -271,21 +309,55 @@ async def run_report() -> AsyncGenerator[str, None]:
                     except PWTimeout:
                         pass
 
-            # ---- Click Run/Search button if configured ----
+            # ---- Click Run/Search/Find button to execute the report ----
+            # Try the configured button name first, then fall back to common labels
+            run_button_candidates = []
             if run_button:
-                yield f"data: Clicking '{run_button}' button...\n\n"
-                clicked = await _try_click(
-                    page,
-                    f"button:has-text('{run_button}'), input[value='{run_button}'], a:has-text('{run_button}')",
-                    timeout=8000,
-                )
-                if clicked:
-                    try:
-                        await page.wait_for_load_state("networkidle", timeout=20000)
-                    except PWTimeout:
-                        pass
-                else:
-                    yield f"data: Note: '{run_button}' button not found — capturing page as-is\n\n"
+                run_button_candidates.append(run_button)
+            run_button_candidates += [
+                "Find", "Finn",        # Xledger standard
+                "Search", "Søk",
+                "Run", "Kjør",
+                "Execute", "Utfør",
+                "Generate",
+                "Show", "Vis",
+                "Refresh", "Oppdater",
+                "OK",
+            ]
+
+            yield "data: Waiting for report interface to load...\n\n"
+            await asyncio.sleep(3)
+
+            yield "data: Looking for Find/Run button...\n\n"
+            report_triggered = False
+            for label in run_button_candidates:
+                for el_type in ["button", "input", "a", "div", "span"]:
+                    sel = (
+                        f"input[value='{label}']"
+                        if el_type == "input"
+                        else f"{el_type}:has-text('{label}')"
+                    )
+                    if await _try_click(page, sel, timeout=3000):
+                        yield f"data: Clicked '{label}' button\n\n"
+                        report_triggered = True
+                        break
+                if report_triggered:
+                    break
+
+            if not report_triggered:
+                yield "data: Note: no Find/Run button found — capturing page as-is\n\n"
+            else:
+                # Accept any native browser dialog that appears (alert/confirm/prompt)
+                page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=20000)
+                except PWTimeout:
+                    pass
+
+            # Dismiss any in-page modal/popup that appeared (confirmation, info message, etc.)
+            yield "data: Checking for any popup messages...\n\n"
+            await asyncio.sleep(2)
+            await _dismiss_popup(page)
 
             # ---- Wait for report content ----
             yield "data: Waiting for report to load...\n\n"
