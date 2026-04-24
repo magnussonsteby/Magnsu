@@ -289,6 +289,11 @@ async def run_report() -> AsyncGenerator[str, None]:
 
             yield "data: Logged in successfully\n\n"
 
+            # Dismiss any welcome/info popup that appears right after login
+            yield "data: Checking for post-login popup...\n\n"
+            await asyncio.sleep(2)
+            await _dismiss_popup(page)
+
             # ---- Navigate via menu ----
             if not menu_path:
                 yield "data: WARNING: No menu path configured — capturing current page\n\n"
@@ -354,10 +359,6 @@ async def run_report() -> AsyncGenerator[str, None]:
                 except PWTimeout:
                     pass
 
-            # Dismiss any in-page modal/popup that appeared (confirmation, info message, etc.)
-            yield "data: Checking for any popup messages...\n\n"
-            await asyncio.sleep(2)
-            await _dismiss_popup(page)
 
             # ---- Wait for report content ----
             yield "data: Waiting for report to load...\n\n"
