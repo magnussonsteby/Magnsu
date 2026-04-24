@@ -127,6 +127,10 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   </div>
 
   <div class="form-group">
+    <label>Xledger Login URL (leave blank for default)</label>
+    <input type="text" id="cfg-loginurl" placeholder="https://www.xledger.net/">
+  </div>
+  <div class="form-group">
     <label>Xledger Username / Email</label>
     <input type="email" id="cfg-user" placeholder="you@company.com">
   </div>
@@ -194,6 +198,8 @@ function toast(msg, isError = false) {
 async function loadConfig() {
   try {
     const cfg = await api('/api/config');
+    if (cfg.login_url && cfg.login_url !== 'https://www.xledger.net/')
+      document.getElementById('cfg-loginurl').value = cfg.login_url;
     if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
     if (cfg.menu_path && cfg.menu_path.length)
       document.getElementById('cfg-menu').value = cfg.menu_path.join(' > ');
@@ -208,6 +214,7 @@ async function loadConfig() {
 
 // ---- Save config ----
 async function saveConfig() {
+  const login_url  = document.getElementById('cfg-loginurl').value.trim() || 'https://www.xledger.net/';
   const username   = document.getElementById('cfg-user').value.trim();
   const password   = document.getElementById('cfg-pass').value;
   const menuRaw    = document.getElementById('cfg-menu').value;
@@ -215,7 +222,6 @@ async function saveConfig() {
   const emailsRaw  = document.getElementById('cfg-emails').value;
   const subject    = document.getElementById('cfg-subject').value.trim() || 'Xledger Time Report';
 
-  // Parse "Reports > Time Registration" into ["Reports", "Time Registration"]
   const menu_path = menuRaw.split('>').map(s => s.trim()).filter(Boolean);
   const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
 
@@ -227,7 +233,7 @@ async function saveConfig() {
     await api('/api/config', {
       method: 'POST',
       body: JSON.stringify({
-        xledger_username: username, xledger_password: password,
+        login_url, xledger_username: username, xledger_password: password,
         menu_path, run_button, recipient_emails, email_subject: subject, headless: false,
       }),
     });

@@ -6,6 +6,7 @@ from typing import AsyncGenerator
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+DEBUG_SCREENSHOT = Path(__file__).parent.parent / "debug_screenshot.png"
 
 _running = False
 
@@ -31,8 +32,146 @@ def _table_to_html(table_html: str) -> str:
     )
 
 
+async def _dismiss_cookies(page) -> None:
+    """Click any cookie consent / GDPR accept button if present."""
+    cookie_labels = [
+        "Accept all", "Accept All", "Accept", "Allow all", "Allow All",
+        "Godta alle", "Godta", "Aksepter", "Aksepter alle",
+        "OK", "I agree", "Agree", "Consent",
+    ]
+    for label in cookie_labels:
+        try:
+            btn = page.locator(
+                f"button:has-text('{label}'), "
+                f"a:has-text('{label}'), "
+                f"[role='button']:has-text('{label}')"
+            ).first
+            if await btn.is_visible(timeout=2000):
+                await btn.click()
+                await asyncio.sleep(0.8)
+                return
+        except Exception:
+            continue
+
+
+async def _try_fill(page, selector: str, value: str, timeout: int = 5000) -> bool:
+    try:
+        el = page.locator(selector).first
+        if await el.is_visible(timeout=timeout):
+            await el.fill(value)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+async def _try_click(page, selector: str, timeout: int = 5000) -> bool:
+    try:
+        el = page.locator(selector).first
+        if await el.is_visible(timeout=timeout):
+            await el.click()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
+    """
+    Attempt login. Returns (success, error_message).
+    Handles both single-page and two-step (email then password) forms.
+    """
+    # Wait for any input to appear (up to 15s — some SSO pages are slow)
+    try:
+        await page.wait_for_selector("input", timeout=15000)
+    except PWTimeout:
+        return False, "Login page did not load — check the Xledger URL in Settings"
+
+    # Broad selectors ordered from most to least specific
+    username_selectors = [
+        "input[name='username']",
+        "input[name='email']",
+        "input[name='UserName']",
+        "input[name='Email']",
+        "input[type='email']",
+        "input[type='text']",
+    ]
+
+    filled_username = False
+    for sel in username_selectors:
+        if await _try_fill(page, sel, username):
+            filled_username = True
+            break
+
+    if not filled_username:
+        return False, "Could not find the username/email field on the login page"
+
+    # Check if password field is visible now, or if this is a two-step form
+    pw_visible = False
+    try:
+        pw_el = page.locator("input[type='password']").first
+        pw_visible = await pw_el.is_visible(timeout=2000)
+    except Exception:
+        pass
+
+    if not pw_visible:
+        # Two-step form: click Next/Continue after entering username
+        for next_label in ["Next", "Continue", "Neste", "Fortsett"]:
+            if await _try_click(page, f"button:has-text('{next_label}')"):
+                await asyncio.sleep(1.5)
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                break
+        else:
+            # Try submitting with Enter key
+            await page.keyboard.press("Enter")
+            await asyncio.sleep(1.5)
+
+    # Fill password
+    if not await _try_fill(page, "input[type='password']", password, timeout=8000):
+        return False, "Could not find the password field — the login form may have changed"
+
+    # Submit
+    submit_clicked = False
+    for submit_sel in [
+        "button[type='submit']",
+        "input[type='submit']",
+        "button:has-text('Log in')",
+        "button:has-text('Login')",
+        "button:has-text('Sign in')",
+        "button:has-text('Logg inn')",
+        "button:has-text('Innlogging')",
+    ]:
+        if await _try_click(page, submit_sel, timeout=3000):
+            submit_clicked = True
+            break
+
+    if not submit_clicked:
+        # Last resort: press Enter on the password field
+        await page.keyboard.press("Enter")
+
+    # Wait for navigation — the URL should change or the page should settle
+    try:
+        await page.wait_for_load_state("networkidle", timeout=25000)
+    except PWTimeout:
+        pass  # Some SPAs never reach networkidle; that's OK
+
+    await asyncio.sleep(2)
+
+    # Detect login failure: login form still visible with no content behind it
+    pw_still_visible = False
+    try:
+        pw_el = page.locator("input[type='password']").first
+        pw_still_visible = await pw_el.is_visible(timeout=2000)
+    except Exception:
+        pass
+
+    if pw_still_visible:
+        return False, "Login failed — username or password was not accepted"
+
+    return True, ""
+
+
 async def _click_menu_item(page, label: str) -> bool:
-    """Try to click a nav/menu element whose visible text matches label."""
     selectors = [
         f"nav a:has-text('{label}')",
         f"nav button:has-text('{label}')",
@@ -45,13 +184,8 @@ async def _click_menu_item(page, label: str) -> bool:
         f"span:has-text('{label}')",
     ]
     for sel in selectors:
-        try:
-            el = page.locator(sel).first
-            if await el.is_visible(timeout=3000):
-                await el.click()
-                return True
-        except Exception:
-            continue
+        if await _try_click(page, sel, timeout=4000):
+            return True
     return False
 
 
@@ -62,6 +196,8 @@ async def run_report() -> AsyncGenerator[str, None]:
         return
 
     _running = True
+    page = None
+    browser = None
     try:
         yield "data: Loading configuration...\n\n"
         await asyncio.sleep(0.1)
@@ -69,6 +205,7 @@ async def run_report() -> AsyncGenerator[str, None]:
 
         menu_path: list[str] = config.get("menu_path", [])
         run_button: str = config.get("run_button", "").strip()
+        login_url: str = config.get("login_url", "https://www.xledger.net/").rstrip("/") + "/"
 
         yield "data: Starting browser...\n\n"
         await asyncio.sleep(0.1)
@@ -79,35 +216,21 @@ async def run_report() -> AsyncGenerator[str, None]:
             page = await context.new_page()
 
             # ---- Login ----
-            yield "data: Opening Xledger...\n\n"
-            await page.goto("https://www.xledger.net/", timeout=30000)
+            yield f"data: Opening {login_url} ...\n\n"
+            await page.goto(login_url, timeout=30000)
             await page.wait_for_load_state("domcontentloaded")
 
-            yield "data: Entering credentials...\n\n"
-            username_sel = (
-                "input[name='username'], input[name='email'], "
-                "input[type='email'], input[id*='user'], input[id*='login']"
-            )
-            password_sel = "input[type='password']"
-            submit_sel = (
-                "button[type='submit'], input[type='submit'], "
-                "button:has-text('Log in'), button:has-text('Sign in'), button:has-text('Login')"
-            )
+            yield "data: Checking for cookie consent dialog...\n\n"
+            await _dismiss_cookies(page)
 
-            try:
-                await page.wait_for_selector(username_sel, timeout=10000)
-                await page.fill(username_sel, config["xledger_username"])
-                await page.fill(password_sel, config["xledger_password"])
-                yield "data: Logging in...\n\n"
-                await page.click(submit_sel)
-                await page.wait_for_load_state("networkidle", timeout=25000)
-            except PWTimeout:
-                yield "data: ERROR: Could not find login form — is xledger.net reachable?\n\n"
-                await browser.close()
-                return
+            yield "data: Filling in login details...\n\n"
+            ok, err = await _do_login(page, config["xledger_username"], config["xledger_password"])
 
-            if "login" in page.url.lower() or "signin" in page.url.lower():
-                yield "data: ERROR: Login failed — check your username and password in Settings\n\n"
+            if not ok:
+                screenshot = await page.screenshot(full_page=False)
+                DEBUG_SCREENSHOT.write_bytes(screenshot)
+                yield f"data: ERROR: {err}\n\n"
+                yield f"data: A screenshot was saved to debug_screenshot.png in the app folder — open it to see what the browser shows\n\n"
                 await browser.close()
                 return
 
@@ -117,27 +240,36 @@ async def run_report() -> AsyncGenerator[str, None]:
             if not menu_path:
                 yield "data: WARNING: No menu path configured — capturing current page\n\n"
             else:
-                for i, item in enumerate(menu_path):
+                for item in menu_path:
                     yield f"data: Clicking menu: {item}...\n\n"
                     found = await _click_menu_item(page, item)
                     if not found:
-                        yield f"data: ERROR: Could not find menu item '{item}' — check the menu path in Settings\n\n"
+                        screenshot = await page.screenshot(full_page=False)
+                        DEBUG_SCREENSHOT.write_bytes(screenshot)
+                        yield f"data: ERROR: Could not find menu item '{item}'\n\n"
+                        yield f"data: A screenshot was saved to debug_screenshot.png — open it to see the current screen\n\n"
                         await browser.close()
                         return
                     await asyncio.sleep(1.5)
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    try:
+                        await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    except PWTimeout:
+                        pass
 
             # ---- Click Run/Search button if configured ----
             if run_button:
                 yield f"data: Clicking '{run_button}' button...\n\n"
-                try:
-                    await page.click(
-                        f"button:has-text('{run_button}'), input[value='{run_button}'], "
-                        f"a:has-text('{run_button}')",
-                        timeout=8000,
-                    )
-                    await page.wait_for_load_state("networkidle", timeout=20000)
-                except PWTimeout:
+                clicked = await _try_click(
+                    page,
+                    f"button:has-text('{run_button}'), input[value='{run_button}'], a:has-text('{run_button}')",
+                    timeout=8000,
+                )
+                if clicked:
+                    try:
+                        await page.wait_for_load_state("networkidle", timeout=20000)
+                    except PWTimeout:
+                        pass
+                else:
                     yield f"data: Note: '{run_button}' button not found — capturing page as-is\n\n"
 
             # ---- Wait for report content ----
@@ -194,7 +326,16 @@ async def run_report() -> AsyncGenerator[str, None]:
     except FileNotFoundError as e:
         yield f"data: ERROR: {e}\n\n"
     except Exception as e:
-        yield f"data: ERROR: {e}\n\n"
+        if page:
+            try:
+                screenshot = await page.screenshot(full_page=False)
+                DEBUG_SCREENSHOT.write_bytes(screenshot)
+                yield f"data: ERROR: {e}\n\n"
+                yield "data: A screenshot was saved to debug_screenshot.png in the app folder\n\n"
+            except Exception:
+                yield f"data: ERROR: {e}\n\n"
+        else:
+            yield f"data: ERROR: {e}\n\n"
     finally:
         _running = False
 
