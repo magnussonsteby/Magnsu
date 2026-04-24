@@ -1,10 +1,10 @@
 # Magnsu app files (tracked on claude/define-project-model-lxwFw, not this branch)
-alembic/
-api/
-db/
-models/
-tests/
-magnsu.db
+/alembic/
+/api/
+/db/
+/models/
+/tests/
+/magnsu.db
 
 # Python
 __pycache__/

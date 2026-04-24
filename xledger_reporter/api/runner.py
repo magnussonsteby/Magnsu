@@ -130,7 +130,11 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
     if not await _try_fill(page, "input[type='password']", password, timeout=8000):
         return False, "Could not find the password field — the login form may have changed"
 
-    # Submit
+    # Dismiss cookies again — they sometimes reappear over the submit button
+    await _dismiss_cookies(page)
+    await asyncio.sleep(0.5)
+
+    # Submit — try button click first, then fall back to pressing Enter
     submit_clicked = False
     for submit_sel in [
         "button[type='submit']",
@@ -146,16 +150,16 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
             break
 
     if not submit_clicked:
-        # Last resort: press Enter on the password field
-        await page.keyboard.press("Enter")
+        # Press Enter inside the password field — works on virtually all login forms
+        await page.locator("input[type='password']").first.press("Enter")
 
-    # Wait for navigation — the URL should change or the page should settle
+    # Wait for the page to navigate / settle after login
     try:
-        await page.wait_for_load_state("networkidle", timeout=25000)
+        await page.wait_for_load_state("networkidle", timeout=30000)
     except PWTimeout:
         pass  # Some SPAs never reach networkidle; that's OK
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
     # Detect login failure: login form still visible with no content behind it
     pw_still_visible = False
