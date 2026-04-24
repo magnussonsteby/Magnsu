@@ -24,5 +24,5 @@ app.include_router(time_entries.router, prefix="/time-entries", tags=["time-entr
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_ui():
-    with open("static/index.html") as f:
+    with open("static/index.html", encoding="utf-8") as f:
         return HTMLResponse(f.read())
