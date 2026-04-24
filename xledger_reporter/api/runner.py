@@ -81,11 +81,13 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
     Attempt login. Returns (success, error_message).
     Handles both single-page and two-step (email then password) forms.
     """
-    # Wait for any input to appear (up to 15s — some SSO pages are slow)
+    # Wait generously for the login form to fully render
     try:
-        await page.wait_for_selector("input", timeout=15000)
+        await page.wait_for_selector("input", timeout=20000)
     except PWTimeout:
         return False, "Login page did not load — check the Xledger URL in Settings"
+
+    await asyncio.sleep(2)  # Let JS finish rendering the form
 
     # Broad selectors ordered from most to least specific
     username_selectors = [
@@ -99,18 +101,20 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
 
     filled_username = False
     for sel in username_selectors:
-        if await _try_fill(page, sel, username):
+        if await _try_fill(page, sel, username, timeout=5000):
             filled_username = True
             break
 
     if not filled_username:
         return False, "Could not find the username/email field on the login page"
 
+    await asyncio.sleep(1)  # Pause between fields
+
     # Check if password field is visible now, or if this is a two-step form
     pw_visible = False
     try:
         pw_el = page.locator("input[type='password']").first
-        pw_visible = await pw_el.is_visible(timeout=2000)
+        pw_visible = await pw_el.is_visible(timeout=3000)
     except Exception:
         pass
 
@@ -118,61 +122,61 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
         # Two-step form: click Next/Continue after entering username
         for next_label in ["Next", "Continue", "Neste", "Fortsett"]:
             if await _try_click(page, f"button:has-text('{next_label}')"):
-                await asyncio.sleep(1.5)
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await asyncio.sleep(3)
+                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                await asyncio.sleep(2)
                 break
         else:
-            # Try submitting with Enter key
             await page.keyboard.press("Enter")
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(3)
 
     # Fill password
-    if not await _try_fill(page, "input[type='password']", password, timeout=8000):
+    if not await _try_fill(page, "input[type='password']", password, timeout=10000):
         return False, "Could not find the password field — the login form may have changed"
+
+    await asyncio.sleep(1.5)  # Pause before submitting
 
     # Dismiss cookies again — they sometimes reappear over the submit button
     await _dismiss_cookies(page)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(1)
 
     # Submit — try every reasonable selector for a "Sign in / Log in" button
     submit_clicked = False
     sign_in_texts = ["Sign in", "Sign In", "Log in", "Log In", "Login", "Logg inn", "Innlogging"]
     element_types = ["button", "a", "div", "span", "input"]
 
-    # First pass: any element whose visible text matches a sign-in label
     for text in sign_in_texts:
         for el_type in element_types:
             sel = f"{el_type}:has-text('{text}')" if el_type != "input" else f"input[value='{text}']"
-            if await _try_click(page, sel, timeout=2000):
+            if await _try_click(page, sel, timeout=3000):
                 submit_clicked = True
                 break
         if submit_clicked:
             break
 
-    # Second pass: any element with type=submit
     if not submit_clicked:
         for sel in ["button[type='submit']", "input[type='submit']"]:
-            if await _try_click(page, sel, timeout=2000):
+            if await _try_click(page, sel, timeout=3000):
                 submit_clicked = True
                 break
 
     if not submit_clicked:
-        # Press Enter inside the password field — works on virtually all login forms
         await page.locator("input[type='password']").first.press("Enter")
 
-    # Wait for the page to navigate / settle after login
+    # Wait generously for the page to navigate after login
+    await asyncio.sleep(2)
     try:
         await page.wait_for_load_state("networkidle", timeout=30000)
     except PWTimeout:
-        pass  # Some SPAs never reach networkidle; that's OK
+        pass
 
-    await asyncio.sleep(3)
+    await asyncio.sleep(4)  # Extra buffer for SPA routing after login
 
-    # Detect login failure: login form still visible with no content behind it
+    # Detect login failure: password field still visible means we didn't get past the form
     pw_still_visible = False
     try:
         pw_el = page.locator("input[type='password']").first
-        pw_still_visible = await pw_el.is_visible(timeout=2000)
+        pw_still_visible = await pw_el.is_visible(timeout=3000)
     except Exception:
         pass
 
