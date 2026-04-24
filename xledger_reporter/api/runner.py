@@ -14,29 +14,22 @@ _running = False
 _manual_browser = None
 _manual_page = None
 _manual_pw = None
-_recorded_steps: list[dict] = []   # steps captured during manual session
+_manual_context = None
+_recorded_steps: list[dict] = []   # populated by expose_function across all pages
 
-# JS injected on every page to record clicks + URL changes
+# JS injected on every page load to wire up the click listener
 _RECORDER_JS = """
-if (!window._xrInited) {
-    window._xrInited = true;
-    window._xrClicks = [];
-    document.addEventListener('click', function(e) {
-        const el = e.target.closest(
-            'button, a, input[type="submit"], input[type="button"], ' +
-            '[role="button"], [role="menuitem"], li, td, span'
-        ) || e.target;
-        const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
-        const shortText = text.replace(/\\s+/g, ' ').substring(0, 80);
-        if (shortText.length > 1) {
-            window._xrClicks.push({
-                url:  window.location.href,
-                text: shortText,
-                tag:  el.tagName.toLowerCase(),
-            });
-        }
-    }, true);
-}
+document.addEventListener('click', function(e) {
+    const el = e.target.closest(
+        'button, a, input[type="submit"], input[type="button"], ' +
+        '[role="button"], [role="menuitem"]'
+    ) || e.target;
+    const text = (el.innerText || el.value || el.getAttribute('aria-label') || '')
+                    .trim().replace(/\\s+/g, ' ').substring(0, 80);
+    if (text.length > 1 && window._xrRecord) {
+        window._xrRecord(text, el.tagName.toLowerCase());
+    }
+}, true);
 """
 
 
@@ -282,7 +275,7 @@ def _build_playbook(clicks: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 async def manual_login() -> AsyncGenerator[str, None]:
-    global _running, _manual_browser, _manual_page, _manual_pw, _recorded_steps
+    global _running, _manual_browser, _manual_page, _manual_pw, _manual_context, _recorded_steps
 
     if _running:
         yield "data: Already running — please wait\n\n"
@@ -301,11 +294,8 @@ async def manual_login() -> AsyncGenerator[str, None]:
         yield "data: Starting browser...\n\n"
         _manual_pw = await async_playwright().start()
         _manual_browser = await _manual_pw.chromium.launch(headless=False)
-        context = await _manual_browser.new_context()
-        _manual_page = await context.new_page()
-
-        # Inject recorder on every page navigation
-        await context.add_init_script(_RECORDER_JS)
+        _manual_context = await _manual_browser.new_context()
+        _manual_page = await _manual_context.new_page()
 
         yield f"data: Opening {login_url} ...\n\n"
         await _manual_page.goto(login_url, timeout=30000)
@@ -323,15 +313,23 @@ async def manual_login() -> AsyncGenerator[str, None]:
             yield "data: Screenshot saved to debug_screenshot.png\n\n"
             await _manual_browser.close()
             await _manual_pw.stop()
-            _manual_browser = _manual_page = _manual_pw = None
+            _manual_browser = _manual_page = _manual_context = _manual_pw = None
             return
 
         yield "data: Dismissing post-login popup...\n\n"
         await asyncio.sleep(2)
         await _dismiss_popup(_manual_page)
 
-        # Reset recorder NOW so only the user's navigation steps are captured
-        await _manual_page.evaluate(_RECORDER_JS + "\nwindow._xrClicks = [];")
+        # expose_function persists across ALL page navigations — stores clicks in Python list
+        def _on_click(text: str, tag: str):
+            _recorded_steps.append({"text": text.strip(), "tag": tag})
+
+        await _manual_page.expose_function("_xrRecord", _on_click)
+
+        # add_init_script re-runs the listener JS on every new page load
+        await _manual_context.add_init_script(_RECORDER_JS)
+        # Also inject on the current page right now
+        await _manual_page.evaluate(_RECORDER_JS)
 
         yield "data: READY: Logged in! Navigate to your report in the browser window, then click Capture & Send here\n\n"
 
@@ -343,36 +341,40 @@ async def manual_login() -> AsyncGenerator[str, None]:
                 await _manual_pw.stop()
             except Exception:
                 pass
-            _manual_browser = _manual_page = _manual_pw = None
+            _manual_browser = _manual_page = _manual_context = _manual_pw = None
     finally:
         _running = False
 
 
 async def manual_capture() -> AsyncGenerator[str, None]:
-    global _manual_browser, _manual_page, _manual_pw
+    global _manual_browser, _manual_page, _manual_pw, _manual_context
 
     if _manual_page is None:
         yield "data: ERROR: No browser open — click Login first\n\n"
         return
 
     try:
+        yield "data: Waiting for page to fully load...\n\n"
+        await asyncio.sleep(4)
+        try:
+            await _manual_page.wait_for_load_state("networkidle", timeout=15000)
+        except PWTimeout:
+            pass
+        await asyncio.sleep(2)
+
         yield "data: Capturing current page...\n\n"
         config = load_config()
-        login_url = config.get("login_url", "https://www.xledger.net/").rstrip("/") + "/"
 
-        # Collect recorded clicks from the browser
-        try:
-            raw_clicks = await _manual_page.evaluate("() => window._xrClicks || []")
-            playbook = _build_playbook(raw_clicks)
-            if playbook:
-                config["playbook"] = playbook
-                save_config(config)
-                labels = ", ".join(s["text"] for s in playbook[:6])
-                yield f"data: Recorded {len(playbook)} step(s): {labels} — will run automatically next time\n\n"
-            else:
-                yield "data: Note: no steps were recorded (clicks may not have been detected)\n\n"
-        except Exception as ex:
-            yield f"data: Note: recording failed ({ex})\n\n"
+        # _recorded_steps is populated directly by expose_function on every click
+        playbook = _build_playbook(_recorded_steps)
+        if playbook:
+            config["playbook"] = playbook
+            save_config(config)
+            labels = ", ".join(s["text"] for s in playbook[:6])
+            yield f"data: Recorded {len(playbook)} step(s): {labels}\n\n"
+            yield "data: Steps saved — Auto Run will replay them next time\n\n"
+        else:
+            yield "data: Note: no navigation steps were recorded\n\n"
 
         screenshot, report_body = await _capture_page(_manual_page)
 
@@ -403,14 +405,14 @@ async def manual_capture() -> AsyncGenerator[str, None]:
 
 
 async def close_browser() -> None:
-    global _manual_browser, _manual_page, _manual_pw
+    global _manual_browser, _manual_page, _manual_pw, _manual_context
     if _manual_browser:
         try:
             await _manual_browser.close()
             await _manual_pw.stop()
         except Exception:
             pass
-        _manual_browser = _manual_page = _manual_pw = None
+        _manual_browser = _manual_page = _manual_context = _manual_pw = None
 
 
 # ---------------------------------------------------------------------------
