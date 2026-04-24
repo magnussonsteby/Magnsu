@@ -162,6 +162,20 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* -- Add button -- */
+.add-btn {
+  width: 100%; padding: 13px; margin-bottom: 12px;
+  border: 2px dashed #C7C7CC; border-radius: 14px;
+  background: transparent; color: #007AFF;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.add-btn:active { background: #E5F1FF; border-color: #007AFF; }
+
+/* -- Collapsible create form -- */
+.create-form { display: none; }
+.create-form.open { display: block; }
 </style>
 </head>
 <body>
@@ -233,12 +247,104 @@ select:focus, input:focus { outline: none; border-color: #007AFF; }
 <!-- ============== PROJECTS ============== -->
 <div id="panel-projects" class="panel">
   <div class="page-title">Projects</div>
+
+  <button class="add-btn" onclick="toggleForm('new-project-form')">+ New Project</button>
+  <div id="new-project-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Project Name</label>
+        <input type="text" id="np-name" placeholder="e.g. Customer 2">
+      </div>
+      <div class="form-group">
+        <label>Team</label>
+        <div class="select-wrap"><select id="np-team"></select></div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <div class="select-wrap">
+          <select id="np-status">
+            <option value="active">Active</option>
+            <option value="draft" selected>Draft</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateProject()">Create Project</button>
+    </div>
+  </div>
+
+  <button class="add-btn" onclick="toggleForm('new-task-form')">+ New Task</button>
+  <div id="new-task-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Task Title</label>
+        <input type="text" id="nt-title" placeholder="e.g. Week two">
+      </div>
+      <div class="form-group">
+        <label>Project</label>
+        <div class="select-wrap"><select id="nt-project"></select></div>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <div class="select-wrap">
+          <select id="nt-priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateTask()">Create Task</button>
+    </div>
+  </div>
+
   <div id="projects-list"></div>
 </div>
 
 <!-- ============== TEAM ============== -->
 <div id="panel-team" class="panel">
   <div class="page-title">Team</div>
+
+  <button class="add-btn" onclick="toggleForm('new-member-form')">+ New Member</button>
+  <div id="new-member-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="nm-name" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="text" id="nm-email" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <div class="select-wrap">
+          <select id="nm-role">
+            <option value="admin">Admin</option>
+            <option value="member" selected>Member</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateMember()">Add Member</button>
+    </div>
+  </div>
+
+  <button class="add-btn" onclick="toggleForm('new-team-form')">+ New Team</button>
+  <div id="new-team-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Team Name</label>
+        <input type="text" id="nteam-name" placeholder="e.g. Design">
+      </div>
+      <div class="form-group">
+        <label>Owner</label>
+        <div class="select-wrap"><select id="nteam-owner"></select></div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateTeam()">Create Team</button>
+    </div>
+  </div>
+
   <div id="team-content"></div>
 </div>
 
@@ -444,6 +550,12 @@ async function deleteEntry(id) {
 // -- PROJECTS TAB ---------------------------------------------
 async function initProjects() {
   await loadBaseData();
+
+  // Populate create-form dropdowns
+  const teams = await api('/teams/');
+  setOptions('np-team',    teams,     'id', 'name');
+  setOptions('nt-project', _projects, 'id', 'name');
+
   const list = document.getElementById('projects-list');
 
   if (!_projects.length) {
@@ -482,6 +594,9 @@ async function initProjects() {
 async function initTeam() {
   await loadBaseData();
   const teams = await api('/teams/');
+
+  // Populate owner dropdown for new-team form
+  setOptions('nteam-owner', _users, 'id', 'name');
   const roleClass = { admin: 'b-blue', member: 'b-green', viewer: 'b-gray' };
 
   document.getElementById('team-content').innerHTML = `
@@ -507,6 +622,78 @@ async function initTeam() {
         <div style="color:#6C6C70;font-size:14px;margin-top:2px">${t.member_ids.length} member${t.member_ids.length !== 1 ? 's' : ''}</div>
       </div>`;
     }).join('')}`;
+}
+
+// -- TOGGLE FORM ----------------------------------------------
+function toggleForm(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// -- CREATE MEMBER --------------------------------------------
+async function submitCreateMember() {
+  const name  = document.getElementById('nm-name').value.trim();
+  const email = document.getElementById('nm-email').value.trim();
+  const role  = document.getElementById('nm-role').value;
+  if (!name || !email) { toast('Name and email are required', true); return; }
+  try {
+    await api('/users/', { method: 'POST', body: JSON.stringify({ name, email, role }) });
+    toast('Member added');
+    document.getElementById('nm-name').value = '';
+    document.getElementById('nm-email').value = '';
+    document.getElementById('new-member-form').classList.remove('open');
+    delete _inited['team'];
+    delete _inited['log'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE TEAM ----------------------------------------------
+async function submitCreateTeam() {
+  const name     = document.getElementById('nteam-name').value.trim();
+  const owner_id = document.getElementById('nteam-owner').value;
+  if (!name) { toast('Team name is required', true); return; }
+  try {
+    await api('/teams/', { method: 'POST', body: JSON.stringify({ name, owner_id }) });
+    toast('Team created');
+    document.getElementById('nteam-name').value = '';
+    document.getElementById('new-team-form').classList.remove('open');
+    delete _inited['team'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE PROJECT -------------------------------------------
+async function submitCreateProject() {
+  const name    = document.getElementById('np-name').value.trim();
+  const team_id = document.getElementById('np-team').value;
+  const status  = document.getElementById('np-status').value;
+  if (!name) { toast('Project name is required', true); return; }
+  try {
+    await api('/projects/', { method: 'POST', body: JSON.stringify({ name, team_id, status }) });
+    toast('Project created');
+    document.getElementById('np-name').value = '';
+    document.getElementById('new-project-form').classList.remove('open');
+    delete _inited['projects'];
+    delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE TASK ----------------------------------------------
+async function submitCreateTask() {
+  const title      = document.getElementById('nt-title').value.trim();
+  const project_id = document.getElementById('nt-project').value;
+  const priority   = document.getElementById('nt-priority').value;
+  if (!title) { toast('Task title is required', true); return; }
+  try {
+    await api('/tasks/', { method: 'POST', body: JSON.stringify({ title, project_id, priority }) });
+    toast('Task created');
+    document.getElementById('nt-title').value = '';
+    document.getElementById('new-task-form').classList.remove('open');
+    delete _inited['projects'];
+    delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
 }
 
 // -- TAB SWITCHING --------------------------------------------
