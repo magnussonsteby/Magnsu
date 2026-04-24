@@ -135,8 +135,12 @@ textarea { height: 80px; resize: none; font-size: 14px; }
     <input type="password" id="cfg-pass" placeholder="Leave blank to keep existing">
   </div>
   <div class="form-group">
-    <label>Report URL (paste from Xledger after opening the report)</label>
-    <input type="text" id="cfg-url" placeholder="https://www.xledger.net/Report/...">
+    <label>Menu path to the report (use &gt; to separate levels)</label>
+    <input type="text" id="cfg-menu" placeholder="e.g. Reports &gt; Time Registration">
+  </div>
+  <div class="form-group">
+    <label>Button to click after opening report (optional)</label>
+    <input type="text" id="cfg-runbtn" placeholder="e.g. Run  or  Search  (leave blank if not needed)">
   </div>
   <div class="form-group">
     <label>Recipients (one email per line)</label>
@@ -144,7 +148,7 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   </div>
   <div class="form-group">
     <label>Email Subject</label>
-    <input type="text" id="cfg-subject" placeholder="Xledger Weekly Report">
+    <input type="text" id="cfg-subject" placeholder="Xledger Time Report">
   </div>
   <button class="btn btn-primary" onclick="saveConfig()">Save Settings</button>
 </div>
@@ -153,10 +157,11 @@ textarea { height: 80px; resize: none; font-size: 14px; }
 <div class="card">
   <div class="card-title">How to use</div>
   <div style="font-size:14px;color:#3C3C43;line-height:1.6">
-    <b>1.</b> Fill in your Xledger login and the URL of the report you want to send.<br><br>
-    <b>2.</b> Open the report manually in Xledger, copy the URL from your browser address bar, and paste it into "Report URL".<br><br>
-    <b>3.</b> Enter the email addresses of the people who should receive the report.<br><br>
-    <b>4.</b> Click <b>Run Report &amp; Send Email</b>. A browser window will open, log in to Xledger, capture the report, and send it via Outlook.<br><br>
+    <b>1.</b> Fill in your Xledger login details.<br><br>
+    <b>2.</b> In <b>Menu path</b>, type the menu names you click in Xledger to reach the report, separated by <b>&gt;</b>. For example: <i>Reports &gt; Time Registration</i><br><br>
+    <b>3.</b> If the report has a <b>Run</b> or <b>Search</b> button you need to click to generate the data, enter that button name too.<br><br>
+    <b>4.</b> Enter the email addresses of the recipients.<br><br>
+    <b>5.</b> Click <b>Run Report &amp; Send Email</b>. A browser window will open, log in to Xledger, click through the menus, capture the report, and send it via Outlook.<br><br>
     <b>Note:</b> Outlook must be open and logged in on this PC.
   </div>
 </div>
@@ -190,8 +195,10 @@ async function loadConfig() {
   try {
     const cfg = await api('/api/config');
     if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
-    if (cfg.report_url && cfg.report_url !== 'https://www.xledger.net/')
-      document.getElementById('cfg-url').value = cfg.report_url;
+    if (cfg.menu_path && cfg.menu_path.length)
+      document.getElementById('cfg-menu').value = cfg.menu_path.join(' > ');
+    if (cfg.run_button)
+      document.getElementById('cfg-runbtn').value = cfg.run_button;
     if (cfg.recipient_emails)
       document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
     if (cfg.email_subject)
@@ -201,22 +208,28 @@ async function loadConfig() {
 
 // ---- Save config ----
 async function saveConfig() {
-  const username = document.getElementById('cfg-user').value.trim();
-  const password = document.getElementById('cfg-pass').value;
-  const report_url = document.getElementById('cfg-url').value.trim() || 'https://www.xledger.net/';
-  const emailsRaw = document.getElementById('cfg-emails').value;
-  const subject = document.getElementById('cfg-subject').value.trim() || 'Xledger Report';
+  const username   = document.getElementById('cfg-user').value.trim();
+  const password   = document.getElementById('cfg-pass').value;
+  const menuRaw    = document.getElementById('cfg-menu').value;
+  const run_button = document.getElementById('cfg-runbtn').value.trim();
+  const emailsRaw  = document.getElementById('cfg-emails').value;
+  const subject    = document.getElementById('cfg-subject').value.trim() || 'Xledger Time Report';
 
+  // Parse "Reports > Time Registration" into ["Reports", "Time Registration"]
+  const menu_path = menuRaw.split('>').map(s => s.trim()).filter(Boolean);
   const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
 
   if (!username) { toast('Username is required', true); return; }
+  if (!menu_path.length) { toast('Menu path is required', true); return; }
   if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
 
   try {
     await api('/api/config', {
       method: 'POST',
-      body: JSON.stringify({ xledger_username: username, xledger_password: password,
-        report_url, recipient_emails, email_subject: subject, headless: false }),
+      body: JSON.stringify({
+        xledger_username: username, xledger_password: password,
+        menu_path, run_button, recipient_emails, email_subject: subject, headless: false,
+      }),
     });
     toast('Settings saved');
     document.getElementById('cfg-pass').value = '';

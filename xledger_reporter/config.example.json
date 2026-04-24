@@ -1,8 +1,9 @@
 {
   "xledger_username": "your.email@company.com",
   "xledger_password": "your-password",
-  "report_url": "https://www.xledger.net/",
+  "menu_path": ["Reports", "Time Registration"],
+  "run_button": "Run",
   "recipient_emails": ["recipient@company.com"],
-  "email_subject": "Xledger Report",
+  "email_subject": "Xledger Time Report",
   "headless": false
 }
