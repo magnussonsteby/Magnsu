@@ -134,20 +134,27 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
     await _dismiss_cookies(page)
     await asyncio.sleep(0.5)
 
-    # Submit — try button click first, then fall back to pressing Enter
+    # Submit — try every reasonable selector for a "Sign in / Log in" button
     submit_clicked = False
-    for submit_sel in [
-        "button[type='submit']",
-        "input[type='submit']",
-        "button:has-text('Log in')",
-        "button:has-text('Login')",
-        "button:has-text('Sign in')",
-        "button:has-text('Logg inn')",
-        "button:has-text('Innlogging')",
-    ]:
-        if await _try_click(page, submit_sel, timeout=3000):
-            submit_clicked = True
+    sign_in_texts = ["Sign in", "Sign In", "Log in", "Log In", "Login", "Logg inn", "Innlogging"]
+    element_types = ["button", "a", "div", "span", "input"]
+
+    # First pass: any element whose visible text matches a sign-in label
+    for text in sign_in_texts:
+        for el_type in element_types:
+            sel = f"{el_type}:has-text('{text}')" if el_type != "input" else f"input[value='{text}']"
+            if await _try_click(page, sel, timeout=2000):
+                submit_clicked = True
+                break
+        if submit_clicked:
             break
+
+    # Second pass: any element with type=submit
+    if not submit_clicked:
+        for sel in ["button[type='submit']", "input[type='submit']"]:
+            if await _try_click(page, sel, timeout=2000):
+                submit_clicked = True
+                break
 
     if not submit_clicked:
         # Press Enter inside the password field — works on virtually all login forms
