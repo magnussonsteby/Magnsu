@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Magnsu</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  background: #F2F2F7;
+  color: #1C1C1E;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 84px;
+}
+
+/* ── Tab bar ── */
+.tab-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: rgba(249,249,249,0.94);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0,0,0,0.1);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 100;
+}
+.tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; padding: 8px 0 4px;
+  cursor: pointer; color: #8E8E93; font-size: 10px; gap: 3px;
+  transition: color 0.15s;
+}
+.tab-item.active { color: #007AFF; }
+.tab-item svg { width: 26px; height: 26px; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Panels ── */
+.panel { display: none; padding: 20px 16px 8px; }
+.panel.active { display: block; }
+
+.page-title {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+  margin-bottom: 20px; color: #1C1C1E;
+}
+
+/* ── Cards ── */
+.card {
+  background: #fff; border-radius: 16px;
+  padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* ── Forms ── */
+.form-group { margin-bottom: 14px; }
+.form-group:last-of-type { margin-bottom: 0; }
+
+label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: #6C6C70; margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+select, input[type=text], input[type=number], input[type=date] {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid #E5E5EA; border-radius: 12px;
+  font-size: 16px; color: #1C1C1E; background: #fff;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s;
+}
+select:focus, input:focus { outline: none; border-color: #007AFF; }
+
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: ''; position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent; border-top: 6px solid #8E8E93;
+  margin-top: 3px; pointer-events: none;
+}
+
+/* ── Buttons ── */
+.btn {
+  width: 100%; padding: 15px; border: none; border-radius: 14px;
+  font-size: 17px; font-weight: 600; cursor: pointer;
+  transition: transform 0.1s, opacity 0.15s;
+  margin-top: 6px;
+}
+.btn:active { transform: scale(0.98); opacity: 0.85; }
+.btn-primary { background: #007AFF; color: #fff; }
+.btn-danger  { background: #FF3B30; color: #fff; }
+.btn:disabled { background: #C7C7CC; cursor: not-allowed; }
+
+/* ── Summary card ── */
+.summary-card {
+  background: linear-gradient(135deg, #007AFF 0%, #0040CC 100%);
+  color: #fff; border-radius: 18px; padding: 22px 20px; margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0,122,255,0.35);
+}
+.summary-card .s-label { font-size: 13px; opacity: 0.8; font-weight: 600; letter-spacing: 0.3px; }
+.summary-card .s-value { font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+.summary-card .s-sub   { font-size: 14px; opacity: 0.75; margin-top: 4px; }
+
+/* ── Entry rows ── */
+.entry-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid #F2F2F7;
+}
+.entry-row:last-child { border-bottom: none; }
+.entry-title { font-size: 15px; font-weight: 600; }
+.entry-sub   { font-size: 13px; color: #6C6C70; margin-top: 2px; }
+.entry-hours { font-size: 22px; font-weight: 800; color: #007AFF; }
+.delete-btn  {
+  background: none; border: none; color: #FF3B30;
+  font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 2px;
+  padding: 4px 0;
+}
+
+/* ── Badges ── */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
+}
+.b-blue   { background: #E5F1FF; color: #0056CC; }
+.b-green  { background: #E5F7ED; color: #1D8348; }
+.b-orange { background: #FFF3E0; color: #CC6600; }
+.b-red    { background: #FFE8E7; color: #CC1A15; }
+.b-gray   { background: #F0F0F5; color: #555; }
+
+/* ── Section header ── */
+.section-header {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+  margin: 24px 0 10px; color: #1C1C1E;
+}
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: #1C1C1E; color: #fff; padding: 12px 22px;
+  border-radius: 22px; font-size: 14px; font-weight: 500;
+  z-index: 999; opacity: 0; transition: opacity 0.25s;
+  white-space: nowrap; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* ── Empty state ── */
+.empty { text-align: center; padding: 48px 20px; color: #8E8E93; }
+.empty-icon { font-size: 44px; margin-bottom: 10px; }
+.empty-text { font-size: 16px; font-weight: 500; }
+
+/* ── Row groups ── */
+.row-2 { display: flex; gap: 10px; }
+.row-2 > * { flex: 1; }
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOG ══════════════ -->
+<div id="panel-log" class="panel active">
+  <div class="page-title">Log Hours</div>
+  <div class="card">
+    <div class="form-group">
+      <label>Team Member</label>
+      <div class="select-wrap"><select id="log-user"></select></div>
+    </div>
+    <div class="form-group">
+      <label>Task</label>
+      <div class="select-wrap"><select id="log-task"></select></div>
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="log-date">
+      </div>
+      <div class="form-group">
+        <label>Hours</label>
+        <input type="number" id="log-hours" min="0.5" max="24" step="0.5" placeholder="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" id="log-notes" placeholder="What did you work on?">
+    </div>
+    <button class="btn btn-primary" id="log-btn" onclick="submitLog()">Log Hours</button>
+  </div>
+</div>
+
+<!-- ══════════════ HISTORY ══════════════ -->
+<div id="panel-history" class="panel">
+  <div class="page-title">History</div>
+
+  <div class="summary-card">
+    <div class="s-label">TOTAL HOURS</div>
+    <div class="s-value" id="h-total">—</div>
+    <div class="s-sub" id="h-count">Loading…</div>
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label>Filter by Task</label>
+      <div class="select-wrap">
+        <select id="f-task" onchange="loadHistory()">
+          <option value="">All tasks</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="form-group" style="margin-bottom:0">
+        <label>From</label>
+        <input type="date" id="f-from" onchange="loadHistory()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>To</label>
+        <input type="date" id="f-to" onchange="loadHistory()">
+      </div>
+    </div>
+  </div>
+
+  <div id="history-list"></div>
+</div>
+
+<!-- ══════════════ PROJECTS ══════════════ -->
+<div id="panel-projects" class="panel">
+  <div class="page-title">Projects</div>
+  <div id="projects-list"></div>
+</div>
+
+<!-- ══════════════ TEAM ══════════════ -->
+<div id="panel-team" class="panel">
+  <div class="page-title">Team</div>
+  <div id="team-content"></div>
+</div>
+
+<!-- ══════════════ TAB BAR ══════════════ -->
+<nav class="tab-bar">
+  <div class="tab-item active" id="tab-log" onclick="switchTab('log')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+    Log
+  </div>
+  <div class="tab-item" id="tab-history" onclick="switchTab('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+      <line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+    History
+  </div>
+  <div class="tab-item" id="tab-projects" onclick="switchTab('projects')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    Projects
+  </div>
+  <div class="tab-item" id="tab-team" onclick="switchTab('team')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    Team
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+// ── Globals ──────────────────────────────────────────────────
+let _users = [], _tasks = [], _projects = [];
+const _inited = {};
+let _activeTab = 'log';
+
+// ── API helper ───────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Something went wrong');
+  return data;
+}
+
+// ── Toast ────────────────────────────────────────────────────
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#FF3B30' : '#1C1C1E';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmtDate(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US',
+    { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function setOptions(id, items, val, label) {
+  document.getElementById(id).innerHTML =
+    items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
+}
+
+async function loadBaseData() {
+  [_users, _tasks, _projects] = await Promise.all([
+    api('/users/'), api('/tasks/'), api('/projects/'),
+  ]);
+}
+
+function taskLabel(t) {
+  const p = _projects.find(p => p.id === t.project_id);
+  return (p ? p.name + ' › ' : '') + t.title;
+}
+
+// ── LOG TAB ──────────────────────────────────────────────────
+async function initLog() {
+  await loadBaseData();
+  setOptions('log-user', _users, 'id', 'name');
+  setOptions('log-task', _tasks.map(t => ({ ...t, _label: taskLabel(t) })), 'id', '_label');
+  document.getElementById('log-date').value = today();
+}
+
+async function submitLog() {
+  const user_id = document.getElementById('log-user').value;
+  const task_id = document.getElementById('log-task').value;
+  const date    = document.getElementById('log-date').value;
+  const hours   = parseFloat(document.getElementById('log-hours').value);
+  const notes   = document.getElementById('log-notes').value.trim() || null;
+
+  if (!date)        { toast('Please pick a date', true); return; }
+  if (!hours || hours <= 0) { toast('Please enter hours', true); return; }
+
+  const btn = document.getElementById('log-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await api('/time-entries/', {
+      method: 'POST',
+      body: JSON.stringify({ user_id, task_id, date, hours, notes }),
+    });
+    toast('✓ ' + hours + 'h logged');
+    document.getElementById('log-hours').value = '';
+    document.getElementById('log-notes').value = '';
+    // Reset history so it reloads next visit
+    delete _inited['history'];
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Log Hours';
+  }
+}
+
+// ── HISTORY TAB ──────────────────────────────────────────────
+async function initHistory() {
+  await loadBaseData();
+  const sel = document.getElementById('f-task');
+  sel.innerHTML = '<option value="">All tasks</option>' +
+    _tasks.map(t => `<option value="${t.id}">${taskLabel(t)}</option>`).join('');
+  await loadHistory();
+}
+
+async function loadHistory() {
+  const task_id   = document.getElementById('f-task').value;
+  const date_from = document.getElementById('f-from').value;
+  const date_to   = document.getElementById('f-to').value;
+
+  const p = new URLSearchParams();
+  if (task_id)   p.set('task_id',   task_id);
+  if (date_from) p.set('date_from', date_from);
+  if (date_to)   p.set('date_to',   date_to);
+  const qs = p.toString() ? '?' + p : '';
+
+  const [entries, summary] = await Promise.all([
+    api('/time-entries/' + qs),
+    api('/time-entries/summary' + qs),
+  ]);
+
+  document.getElementById('h-total').textContent = summary.total_hours.toFixed(1) + 'h';
+  document.getElementById('h-count').textContent =
+    summary.entry_count + ' entr' + (summary.entry_count === 1 ? 'y' : 'ies');
+
+  const list = document.getElementById('history-list');
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No entries yet</div></div>';
+    return;
+  }
+
+  list.innerHTML = entries.map(e => {
+    const user = _users.find(u => u.id === e.user_id);
+    const task = _tasks.find(t => t.id === e.task_id);
+    const proj = _projects.find(p => task && p.id === task.project_id);
+    return `
+    <div class="card">
+      <div class="entry-row">
+        <div>
+          <div class="entry-title">${task ? task.title : 'Unknown task'}</div>
+          <div class="entry-sub">${proj ? proj.name + '  ·  ' : ''}${user ? user.name : ''}</div>
+          <div class="entry-sub">${fmtDate(e.date)}${e.notes ? '  ·  ' + e.notes : ''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:12px">
+          <div class="entry-hours">${e.hours}h</div>
+          <button class="delete-btn" onclick="deleteEntry('${e.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this time entry?')) return;
+  try {
+    await api('/time-entries/' + id, { method: 'DELETE' });
+    toast('Entry deleted');
+    await loadHistory();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+// ── PROJECTS TAB ─────────────────────────────────────────────
+async function initProjects() {
+  await loadBaseData();
+  const list = document.getElementById('projects-list');
+
+  if (!_projects.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><div class="empty-text">No projects yet</div></div>';
+    return;
+  }
+
+  const statusClass  = { active: 'b-green', draft: 'b-orange', archived: 'b-gray' };
+  const taskBadge    = { todo: 'b-orange', in_progress: 'b-blue', done: 'b-green' };
+  const priorityBadge = { high: 'b-red', medium: 'b-orange', low: 'b-gray' };
+
+  list.innerHTML = _projects.map(p => {
+    const tasks = _tasks.filter(t => t.project_id === p.id);
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${tasks.length ? 12 : 0}px">
+        <div style="font-size:18px;font-weight:800">${p.name}</div>
+        <span class="badge ${statusClass[p.status] || 'b-gray'}">${p.status}</span>
+      </div>
+      ${tasks.map(t => `
+        <div class="entry-row">
+          <div>
+            <div style="font-size:15px;font-weight:600">${t.title}</div>
+            <div style="margin-top:5px;display:flex;gap:6px">
+              <span class="badge ${taskBadge[t.status] || 'b-gray'}">${t.status.replace('_', ' ')}</span>
+              <span class="badge ${priorityBadge[t.priority] || 'b-gray'}">${t.priority}</span>
+            </div>
+          </div>
+        </div>`).join('')}
+      ${!tasks.length ? '<div style="color:#8E8E93;font-size:14px">No tasks yet</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── TEAM TAB ─────────────────────────────────────────────────
+async function initTeam() {
+  await loadBaseData();
+  const teams = await api('/teams/');
+  const roleClass = { admin: 'b-blue', member: 'b-green', viewer: 'b-gray' };
+
+  document.getElementById('team-content').innerHTML = `
+    <div class="section-header">Members</div>
+    ${_users.map(u => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:17px;font-weight:700">${u.name}</div>
+            <div style="color:#6C6C70;font-size:13px;margin-top:2px">${u.email}</div>
+          </div>
+          <span class="badge ${roleClass[u.role] || 'b-gray'}">${u.role}</span>
+        </div>
+      </div>`).join('')}
+
+    <div class="section-header">Teams</div>
+    ${teams.map(t => {
+      const owner = _users.find(u => u.id === t.owner_id);
+      return `
+      <div class="card">
+        <div style="font-size:18px;font-weight:800;margin-bottom:8px">${t.name}</div>
+        <div style="color:#6C6C70;font-size:14px">Owner: ${owner ? owner.name : '—'}</div>
+        <div style="color:#6C6C70;font-size:14px;margin-top:2px">${t.member_ids.length} member${t.member_ids.length !== 1 ? 's' : ''}</div>
+      </div>`;
+    }).join('')}`;
+}
+
+// ── TAB SWITCHING ────────────────────────────────────────────
+const tabInits = { log: initLog, history: initHistory, projects: initProjects, team: initTeam };
+
+async function switchTab(name) {
+  if (_activeTab === name) return;
+  _activeTab = name;
+
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+
+  if (!_inited[name]) {
+    _inited[name] = true;
+    await tabInits[name]();
+  }
+}
+
+// ── Boot ─────────────────────────────────────────────────────
+_inited['log'] = true;
+initLog().catch(e => toast('Failed to load: ' + e.message, true));
+</script>
+</body>
+</html>
