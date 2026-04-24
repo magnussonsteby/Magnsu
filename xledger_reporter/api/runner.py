@@ -170,7 +170,7 @@ async def _do_login(page, username: str, password: str) -> tuple[bool, str]:
     except PWTimeout:
         pass
 
-    await asyncio.sleep(4)  # Extra buffer for SPA routing after login
+    await asyncio.sleep(10)  # Extra buffer for SPA routing after login
 
     # Detect login failure: password field still visible means we didn't get past the form
     pw_still_visible = False
