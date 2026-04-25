@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Pipedrive Reporter</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #F2F2F7; color: #1C1C1E;
+  max-width: 480px; margin: 0 auto; min-height: 100vh;
+  padding: 20px 16px 40px;
+}
+
+.page-title { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+.page-sub   { font-size: 14px; color: #8E8E93; margin-bottom: 24px; }
+
+.card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.card-title { font-size: 17px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+
+.form-group { margin-bottom: 14px; }
+.form-group:last-of-type { margin-bottom: 0; }
+label { display: block; font-size: 12px; font-weight: 600; color: #6C6C70; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+input[type=text], input[type=email], input[type=password], textarea, select {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid #E5E5EA; border-radius: 12px;
+  font-size: 16px; color: #1C1C1E; background: #fff;
+  -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: #007AFF; }
+textarea { height: 80px; resize: none; font-size: 14px; }
+
+.btn { width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.15s; margin-top: 4px; }
+.btn:active { transform: scale(0.98); opacity: 0.85; }
+.btn-primary { background: #007AFF; color: #fff; }
+.btn-green   { background: #34C759; color: #fff; }
+.btn-gray    { background: #F2F2F7; color: #1C1C1E; border: 1.5px solid #E5E5EA; }
+.btn:disabled { background: #C7C7CC; cursor: not-allowed; }
+.btn-sm      { padding: 11px; font-size: 15px; }
+
+.badge-saved { font-size: 11px; background: #E5F7ED; color: #1D8348; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+
+.row-2 { display: flex; gap: 8px; }
+.row-2 .form-group { flex: 1; margin-bottom: 0; }
+
+#toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: #1C1C1E; color: #fff; padding: 12px 22px; border-radius: 22px; font-size: 14px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.25s; white-space: nowrap; pointer-events: none; }
+#toast.show { opacity: 1; }
+
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { border: none; border-top: 1px solid #F2F2F7; margin: 12px 0; }
+.log-box { display:none; margin-top:10px; background:#1C1C1E; border-radius:12px; padding:14px; font-family:monospace; font-size:13px; color:#E5E5EA; white-space:pre-wrap; word-break:break-word; }
+.seg-btn { flex:1; padding:9px 4px; border:none; border-radius:9px; background:transparent; font-size:13px; font-weight:500; color:#3C3C43; cursor:pointer; transition:background 0.15s, color 0.15s; }
+.seg-active { background:#fff; color:#007AFF; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
+</style>
+</head>
+<body>
+
+<div class="page-title">Pipedrive Reporter</div>
+<div class="page-sub">Fetch deals from Pipedrive and email a summary</div>
+
+<!-- Connection card -->
+<div class="card">
+  <div class="card-title">Connection</div>
+  <div style="font-size:14px;color:#3C3C43;margin-bottom:12px;line-height:1.5">
+    Get your API token:<br>
+    <b>Settings &rarr; Personal preferences &rarr; API</b>
+  </div>
+  <div class="form-group">
+    <label>Company Domain</label>
+    <input type="text" id="pd-domain" placeholder="akselera" value="akselera">
+  </div>
+  <div class="form-group">
+    <label>API Token</label>
+    <input type="password" id="pd-token" placeholder="Paste token here"
+           onblur="if(this.value.trim()) { _saveConnectionFields().then(() => loadOwners()); }">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="testConnection()" id="test-btn">Test Connection</button>
+  <div id="test-result" style="margin-top:10px;font-size:13px;display:none"></div>
+</div>
+
+<!-- Fetch card -->
+<div class="card">
+  <div class="card-title">Fetch Deals</div>
+  <div class="form-group">
+    <label>Deal Status</label>
+    <select id="pd-status">
+      <option value="open">Open</option>
+      <option value="won">Won</option>
+      <option value="lost">Lost</option>
+      <option value="all_not_deleted">All (not deleted)</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label style="display:flex;justify-content:space-between;align-items:center">
+      Owner
+      <button onclick="loadOwners(true)" id="owners-refresh-btn"
+        style="font-size:11px;font-weight:600;color:#007AFF;background:none;border:none;cursor:pointer;padding:0">
+        ↻ Refresh
+      </button>
+    </label>
+    <select id="pd-owner">
+      <option value="">All owners</option>
+    </select>
+    <div id="owners-msg" style="font-size:12px;color:#8E8E93;margin-top:4px;display:none"></div>
+  </div>
+  <div class="row-2">
+    <div class="form-group">
+      <label>From date</label>
+      <input type="text" id="pd-from" placeholder="2025-01-01">
+    </div>
+    <div class="form-group">
+      <label>To date</label>
+      <input type="text" id="pd-to" placeholder="2025-12-31">
+    </div>
+  </div>
+
+  <label style="margin-top:14px">Output</label>
+  <div style="display:flex;background:#F2F2F7;border-radius:12px;padding:3px;gap:2px;margin-bottom:4px">
+    <button id="out-email"  onclick="setOutput('email')"  class="seg-btn seg-active">Email</button>
+    <button id="out-screen" onclick="setOutput('screen')" class="seg-btn">View on screen</button>
+    <button id="out-excel"  onclick="setOutput('excel')"  class="seg-btn">Download Excel</button>
+  </div>
+
+  <button class="btn btn-green" onclick="fetchDeals()" id="fetch-btn" style="margin-top:6px">Fetch &amp; Email Deals</button>
+  <div id="fetch-log" class="log-box"></div>
+</div>
+
+<!-- Settings card -->
+<div class="card">
+  <div class="card-title">
+    Settings
+    <span id="saved-badge" class="badge-saved" style="display:none">Saved</span>
+  </div>
+  <div class="form-group">
+    <label>Recipients (one email per line)</label>
+    <textarea id="cfg-emails" placeholder="boss@company.com&#10;colleague@company.com"></textarea>
+  </div>
+  <div class="form-group">
+    <label>Email Subject</label>
+    <input type="text" id="cfg-subject" placeholder="Pipedrive Deals Report">
+  </div>
+  <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || 'Request failed');
+  }
+  return res.json();
+}
+
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#FF3B30' : '#1C1C1E';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+async function _saveConnectionFields() {
+  const token  = document.getElementById('pd-token').value.trim();
+  const domain = document.getElementById('pd-domain').value.trim() || 'akselera';
+  if (!token) return;
+  try {
+    await apiFetch('/api/config', {
+      method: 'POST',
+      body: JSON.stringify({ pipedrive_token: token, pipedrive_domain: domain }),
+    });
+  } catch(e) { /* non-fatal */ }
+}
+
+async function testConnection() {
+  const token = document.getElementById('pd-token').value.trim();
+  if (!token) { toast('Paste an API token first', true); return; }
+  await _saveConnectionFields();
+
+  const btn    = document.getElementById('test-btn');
+  const result = document.getElementById('test-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Testing...';
+  result.style.display = 'none';
+
+  try {
+    const data = await apiFetch('/api/test');
+    result.innerHTML =
+      '<span style="color:#30D158;font-weight:600">Connected</span>' +
+      `<br><span style="color:#8E8E93">User: <b>${data.user}</b> &mdash; ${data.company}</span>`;
+    result.style.display = 'block';
+    toast('Connected to Pipedrive!');
+    loadOwners();
+  } catch(e) {
+    result.innerHTML = '<span style="color:#FF453A;font-weight:600">Failed: ' + e.message + '</span>';
+    result.style.display = 'block';
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test Connection';
+  }
+}
+
+async function loadOwners(showFeedback = false) {
+  const msg = document.getElementById('owners-msg');
+  const btn = document.getElementById('owners-refresh-btn');
+  if (showFeedback) { btn.textContent = '↻ Loading…'; btn.disabled = true; }
+  try {
+    const owners = await apiFetch('/api/owners');
+    const sel = document.getElementById('pd-owner');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All owners</option>';
+    owners.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.name;
+      if (String(o.id) === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    if (msg) {
+      msg.textContent = `${owners.length} owner${owners.length !== 1 ? 's' : ''} loaded`;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    }
+  } catch(e) {
+    if (showFeedback) {
+      if (msg) { msg.textContent = 'Could not load owners — check token'; msg.style.display = 'block'; }
+    }
+  } finally {
+    btn.textContent = '↻ Refresh';
+    btn.disabled = false;
+  }
+}
+
+let _outputMode = 'email';
+
+function setOutput(mode) {
+  _outputMode = mode;
+  ['email', 'screen', 'excel'].forEach(m => {
+    document.getElementById('out-' + m).classList.toggle('seg-active', m === mode);
+  });
+  const labels = { email: 'Fetch & Email Deals', screen: 'Fetch & View on Screen', excel: 'Fetch & Download Excel' };
+  document.getElementById('fetch-btn').textContent = labels[mode];
+}
+
+async function fetchDeals() {
+  const token = document.getElementById('pd-token').value.trim();
+  if (!token) { toast('Set up your connection first', true); return; }
+  await _saveConnectionFields();
+
+  const status   = document.getElementById('pd-status').value;
+  const ownerId  = document.getElementById('pd-owner').value;
+  const fromDate = document.getElementById('pd-from').value.trim();
+  const toDate   = document.getElementById('pd-to').value.trim();
+
+  const params = new URLSearchParams({ status });
+  if (ownerId)  params.set('owner_id', ownerId);
+  if (fromDate) params.set('from_date', fromDate);
+  if (toDate)   params.set('to_date', toDate);
+
+  // View on screen: open HTML preview in new tab
+  if (_outputMode === 'screen') {
+    window.open('/api/preview?' + params.toString(), '_blank');
+    return;
+  }
+
+  // Download Excel: trigger file download
+  if (_outputMode === 'excel') {
+    const a = document.createElement('a');
+    a.href = '/api/excel?' + params.toString();
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  // Email mode
+  const btn   = document.getElementById('fetch-btn');
+  const logEl = document.getElementById('fetch-log');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Fetching deals...';
+  logEl.style.display = 'block';
+  logEl.textContent = 'Contacting Pipedrive API…';
+
+  try {
+    const data = await apiFetch('/api/fetch?' + params.toString());
+    const lines = [
+      'Done.',
+      `Deals fetched  : ${data.rows}`,
+      `Status filter  : ${data.status_filter}`,
+      `Owner          : ${data.owner}`,
+      `Period         : ${data.period}`,
+    ];
+    if (data.emailed_to && data.emailed_to.length) {
+      lines.push(`Emailed to     : ${data.emailed_to.join(', ')}`);
+      toast('Deals fetched & emailed!');
+    } else {
+      lines.push('No recipients configured — add them in Settings.');
+      toast('Fetched (no recipients set)', true);
+    }
+    logEl.textContent = lines.join('\n');
+  } catch(e) {
+    logEl.textContent = 'Error: ' + e.message;
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch & Email Deals';
+  }
+}
+
+async function saveSettings() {
+  const emailsRaw = document.getElementById('cfg-emails').value;
+  const subject   = document.getElementById('cfg-subject').value.trim() || 'Pipedrive Deals Report';
+  const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
+
+  if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
+
+  try {
+    await apiFetch('/api/config', {
+      method: 'POST',
+      body: JSON.stringify({ recipient_emails, email_subject: subject }),
+    });
+    toast('Settings saved');
+    const badge = document.getElementById('saved-badge');
+    badge.style.display = 'inline';
+    setTimeout(() => { badge.style.display = 'none'; }, 3000);
+  } catch(e) { toast(e.message, true); }
+}
+
+async function loadConfig() {
+  try {
+    const cfg = await apiFetch('/api/config');
+    if (cfg.pipedrive_token)  document.getElementById('pd-token').value = cfg.pipedrive_token;
+    if (cfg.pipedrive_domain) document.getElementById('pd-domain').value = cfg.pipedrive_domain;
+    if (cfg.recipient_emails) document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
+    if (cfg.email_subject)    document.getElementById('cfg-subject').value = cfg.email_subject;
+  } catch(e) {}
+}
+
+loadConfig();
+loadOwners();
+</script>
+</body>
+</html>

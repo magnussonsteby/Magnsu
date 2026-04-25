@@ -1,0 +1,16 @@
+# Magnsu main app files (committed on their own branch)
+/alembic/
+/api/
+/db/
+/models/
+/tests/
+/magnsu.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Local config
+config.json
