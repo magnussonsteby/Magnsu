@@ -94,6 +94,12 @@ textarea { height: 80px; resize: none; font-size: 14px; }
       <option value="all_not_deleted">All (not deleted)</option>
     </select>
   </div>
+  <div class="form-group">
+    <label>Owner</label>
+    <select id="pd-owner">
+      <option value="">All owners</option>
+    </select>
+  </div>
   <div class="row-2">
     <div class="form-group">
       <label>From date</label>
@@ -184,6 +190,7 @@ async function testConnection() {
       `<br><span style="color:#8E8E93">User: <b>${data.user}</b> &mdash; ${data.company}</span>`;
     result.style.display = 'block';
     toast('Connected to Pipedrive!');
+    loadOwners();
   } catch(e) {
     result.innerHTML = '<span style="color:#FF453A;font-weight:600">Failed: ' + e.message + '</span>';
     result.style.display = 'block';
@@ -192,6 +199,22 @@ async function testConnection() {
     btn.disabled = false;
     btn.textContent = 'Test Connection';
   }
+}
+
+async function loadOwners() {
+  try {
+    const owners = await apiFetch('/api/owners');
+    const sel = document.getElementById('pd-owner');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All owners</option>';
+    owners.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.name;
+      if (String(o.id) === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch(e) { /* non-fatal — token may not be set yet */ }
 }
 
 let _outputMode = 'email';
@@ -211,10 +234,12 @@ async function fetchDeals() {
   await _saveConnectionFields();
 
   const status   = document.getElementById('pd-status').value;
+  const ownerId  = document.getElementById('pd-owner').value;
   const fromDate = document.getElementById('pd-from').value.trim();
   const toDate   = document.getElementById('pd-to').value.trim();
 
   const params = new URLSearchParams({ status });
+  if (ownerId)  params.set('owner_id', ownerId);
   if (fromDate) params.set('from_date', fromDate);
   if (toDate)   params.set('to_date', toDate);
 
@@ -239,6 +264,7 @@ async function fetchDeals() {
       'Done.',
       `Deals fetched  : ${data.rows}`,
       `Status filter  : ${data.status_filter}`,
+      `Owner          : ${data.owner}`,
       `Period         : ${data.period}`,
     ];
     if (data.emailed_to && data.emailed_to.length) {
@@ -288,6 +314,7 @@ async function loadConfig() {
 }
 
 loadConfig();
+loadOwners();
 </script>
 </body>
 </html>

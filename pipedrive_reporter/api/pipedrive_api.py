@@ -53,28 +53,41 @@ class PipedriveClient:
                 results[label] = {"error": str(e)}
         return results
 
+    async def fetch_owners(self) -> list[dict]:
+        """Return all active Pipedrive users as [{id, name}]."""
+        body = await self._get(f"{self.base_v1}/users")
+        users = body.get("data") or []
+        return [
+            {"id": u["id"], "name": u["name"]}
+            for u in users
+            if u.get("active_flag")
+        ]
+
     async def fetch_deals_page_v1(
         self,
         status: str = "open",
+        owner_id: int | None = None,
         start: int = 0,
         limit: int = 500,
     ) -> dict:
-        return await self._get(f"{self.base_v1}/deals", {
-            "status": status,
-            "start": start,
-            "limit": limit,
-        })
+        params: dict = {"status": status, "start": start, "limit": limit}
+        if owner_id:
+            params["user_id"] = owner_id
+        return await self._get(f"{self.base_v1}/deals", params)
 
     async def fetch_all_deals(
         self,
         status: str = "open",
+        owner_id: int | None = None,
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> list[dict]:
         rows: list[dict] = []
         start = 0
         while True:
-            body = await self.fetch_deals_page_v1(status=status, start=start)
+            body = await self.fetch_deals_page_v1(
+                status=status, owner_id=owner_id, start=start
+            )
             data = body.get("data") or []
             if not data:
                 break

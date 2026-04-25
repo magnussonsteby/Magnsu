@@ -53,14 +53,12 @@ def _client() -> PipedriveClient:
 
 @app.get("/api/debug")
 async def api_debug():
-    """Return raw Pipedrive API responses for diagnosing deal fetch issues."""
     client = _client()
     return await client.raw_deals_sample()
 
 
 @app.get("/api/test")
 async def api_test():
-    """Verify the API token and return the current user's name and company."""
     client = _client()
     try:
         user = await client.ping()
@@ -74,23 +72,28 @@ async def api_test():
     }
 
 
-@app.get("/api/preview", response_class=HTMLResponse)
-async def api_preview(
-    status: str = "open",
-    from_date: str = None,
-    to_date: str = None,
-    pdf: bool = False,
-):
-    """Return a standalone HTML page with the deals table (for on-screen view or PDF print)."""
+@app.get("/api/owners")
+async def api_owners():
+    """Return list of active Pipedrive users for the owner dropdown."""
     client = _client()
-    deals = await client.fetch_all_deals(
-        status=status, from_date=from_date, to_date=to_date
-    )
-    html_table = build_html_table(deals)
-    period = f"{from_date or 'all'} to {to_date or 'today'}"
-    auto_print = "window.addEventListener('load', () => window.print());" if pdf else ""
+    try:
+        return await client.fetch_owners()
+    except Exception as e:
+        raise HTTPException(400, f"Could not load owners: {e}")
 
-    return HTMLResponse(f"""<!DOCTYPE html>
+
+def _build_preview_html(
+    deals: list[dict],
+    status: str,
+    owner_name: str,
+    period: str,
+    pdf: bool,
+) -> str:
+    html_table = build_html_table(deals)
+    auto_print = "window.addEventListener('load', () => window.print());" if pdf else ""
+    owner_part = f" &bull; Owner: {owner_name}" if owner_name else ""
+    count = len(deals)
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -113,36 +116,60 @@ async def api_preview(
 </head>
 <body>
 <h1>Pipedrive Deals &mdash; {status}</h1>
-<div class="meta">Period: {period} &nbsp;&bull;&nbsp; {len(deals)} deal{'s' if len(deals) != 1 else ''}</div>
+<div class="meta">Period: {period}{owner_part} &nbsp;&bull;&nbsp; {count} deal{'s' if count != 1 else ''}</div>
 <button class="print-btn" onclick="window.print()">&#x1F4E5; Save as PDF / Print</button>
 {html_table}
 <script>{auto_print}</script>
 </body>
-</html>""")
+</html>"""
+
+
+@app.get("/api/preview", response_class=HTMLResponse)
+async def api_preview(
+    status: str = "open",
+    owner_id: int = None,
+    from_date: str = None,
+    to_date: str = None,
+    pdf: bool = False,
+):
+    client = _client()
+    deals = await client.fetch_all_deals(
+        status=status, owner_id=owner_id, from_date=from_date, to_date=to_date
+    )
+    period = f"{from_date or 'all'} to {to_date or 'today'}"
+    owner_name = ""
+    if owner_id and deals:
+        owner_name = deals[0].get("Owner", "")
+    return HTMLResponse(_build_preview_html(deals, status, owner_name, period, pdf))
 
 
 @app.get("/api/fetch")
 async def api_fetch(
     status: str = "open",
+    owner_id: int = None,
     from_date: str = None,
     to_date: str = None,
 ):
-    """Fetch deals and optionally email them via Outlook."""
     client = _client()
     cfg = load_config() if CONFIG_PATH.exists() else {}
 
     deals = await client.fetch_all_deals(
-        status=status, from_date=from_date, to_date=to_date
+        status=status, owner_id=owner_id, from_date=from_date, to_date=to_date
     )
-    html_table = build_html_table(deals)
 
+    owner_name = ""
+    if owner_id and deals:
+        owner_name = deals[0].get("Owner", "")
+
+    period = f"{from_date or 'all'} to {to_date or 'today'}"
+    html_table = build_html_table(deals)
     recipients = cfg.get("recipient_emails", [])
     subject    = cfg.get("email_subject", "Pipedrive Deals Report")
-    period     = f"{from_date or 'all'} to {to_date or 'today'}"
+    owner_part = f" — {owner_name}" if owner_name else ""
 
     html_body = f"""<html><body>
 <p style="font-family:Arial,sans-serif;font-size:14px">
-  Pipedrive deals ({status}) &mdash; {period}
+  Pipedrive deals ({status}){owner_part} &mdash; {period}
 </p>
 {html_table}
 <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;margin-top:20px">
@@ -156,6 +183,7 @@ async def api_fetch(
     return {
         "rows":          len(deals),
         "status_filter": status,
+        "owner":         owner_name or "all",
         "period":        period,
         "emailed_to":    recipients,
     }
