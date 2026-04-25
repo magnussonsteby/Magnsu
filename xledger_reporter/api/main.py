@@ -9,6 +9,7 @@ from api.runner import (
     browser_is_open, get_playbook,
 )
 from api.xledger_api import XledgerClient, build_html_table
+from api.pipedrive_api import PipedriveClient, build_html_table as build_pd_html_table
 
 app = FastAPI(title="Xledger Reporter", version="2.0.0")
 STATIC = Path(__file__).parent.parent / "static"
@@ -168,6 +169,76 @@ async def api_fetch(from_date: str = None, to_date: str = None):
     return {
         "rows": len(rows),
         "query_used": query_name,
+        "period": period,
+        "emailed_to": recipients,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pipedrive REST API v2 endpoints
+# ---------------------------------------------------------------------------
+
+def _get_pipedrive_client() -> PipedriveClient:
+    cfg = load_config() if CONFIG_PATH.exists() else {}
+    token = cfg.get("pipedrive_token", "").strip()
+    if not token:
+        raise HTTPException(400, "No Pipedrive token configured — add it in Settings")
+    domain = cfg.get("pipedrive_domain", "akselera").strip() or "akselera"
+    return PipedriveClient(token=token, company_domain=domain)
+
+
+@app.get("/api/pipedrive-test")
+async def pipedrive_test():
+    """Test the Pipedrive API connection and return current user info."""
+    client = _get_pipedrive_client()
+    try:
+        user = await client.ping()
+    except Exception as e:
+        raise HTTPException(400, f"Connection failed: {e}")
+    return {
+        "connected": True,
+        "user": user.get("name", ""),
+        "email": user.get("email", ""),
+        "company": user.get("company_name", ""),
+    }
+
+
+@app.get("/api/pipedrive-fetch")
+async def pipedrive_fetch(
+    status: str = "open",
+    from_date: str = None,
+    to_date: str = None,
+):
+    """Fetch deals from Pipedrive, email them, and return a summary."""
+    client = _get_pipedrive_client()
+    cfg = load_config()
+
+    deals = await client.fetch_all_deals(
+        status=status, from_date=from_date, to_date=to_date
+    )
+    html_table = build_pd_html_table(deals)
+
+    recipients = cfg.get("recipient_emails", [])
+    subject = cfg.get("email_subject", "Pipedrive Deals Report")
+    period = f"{from_date or 'all'} to {to_date or 'today'}"
+
+    html_body = f"""<html><body>
+<p style="font-family:Arial,sans-serif;font-size:14px">
+  Pipedrive deals ({status}) — {period}
+</p>
+{html_table}
+<p style="font-family:Arial,sans-serif;font-size:11px;color:#888;margin-top:20px">
+  Sent automatically by Reporter
+</p>
+</body></html>"""
+
+    if recipients:
+        from api.runner import _send_outlook
+        _send_outlook(subject, recipients, html_body)
+
+    return {
+        "rows": len(deals),
+        "status_filter": status,
         "period": period,
         "emailed_to": recipients,
     }

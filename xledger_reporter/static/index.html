@@ -157,6 +157,48 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   <div id="api-log" style="display:none;margin-top:10px;background:#1C1C1E;border-radius:12px;padding:14px;font-family:monospace;font-size:13px;color:#E5E5EA"></div>
 </div>
 
+<!-- Pipedrive card -->
+<div class="card">
+  <div class="card-title">Pipedrive <span style="font-size:12px;color:#8E8E93;font-weight:400">Deals report</span></div>
+  <div style="font-size:14px;color:#3C3C43;margin-bottom:12px;line-height:1.5">
+    Fetches deals directly from Pipedrive's API and emails a summary.<br>
+    Get your token: <b>Settings &rarr; Personal preferences &rarr; API</b>
+  </div>
+  <div class="form-group">
+    <label>Company Domain</label>
+    <input type="text" id="pd-domain" placeholder="akselera" value="akselera">
+  </div>
+  <div class="form-group">
+    <label>API Token</label>
+    <input type="password" id="pd-token" placeholder="Paste token here">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="testPipedrive()" id="pd-test-btn">Test Connection</button>
+  <div id="pd-test-result" style="margin-top:10px;font-size:13px;display:none"></div>
+
+  <hr class="divider">
+  <div class="form-group">
+    <label>Deal Status</label>
+    <select id="pd-status" style="width:100%;padding:13px 14px;border:1.5px solid #E5E5EA;border-radius:12px;font-size:16px;color:#1C1C1E;background:#fff;-webkit-appearance:none;appearance:none">
+      <option value="open">Open</option>
+      <option value="won">Won</option>
+      <option value="lost">Lost</option>
+      <option value="all_not_deleted">All (not deleted)</option>
+    </select>
+  </div>
+  <div class="row-2" style="margin-top:4px">
+    <div class="form-group" style="margin-bottom:0">
+      <label>From date</label>
+      <input type="text" id="pd-from" placeholder="2025-01-01">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>To date</label>
+      <input type="text" id="pd-to" placeholder="2025-12-31">
+    </div>
+  </div>
+  <button class="btn btn-green" onclick="runPipedrive()" id="pd-run-btn" style="margin-top:10px">Fetch &amp; Email Deals</button>
+  <div id="pd-log" style="display:none;margin-top:10px;background:#1C1C1E;border-radius:12px;padding:14px;font-family:monospace;font-size:13px;color:#E5E5EA"></div>
+</div>
+
 <!-- Settings card -->
 <div class="card">
   <div class="card-title">
@@ -459,6 +501,94 @@ async function runApi() {
   }
 }
 
+// ---- Pipedrive Mode ----
+async function testPipedrive() {
+  const token  = document.getElementById('pd-token').value.trim();
+  const domain = document.getElementById('pd-domain').value.trim() || 'akselera';
+  if (!token) { toast('Paste a Pipedrive API token first', true); return; }
+
+  await _savePipedriveFields(token, domain);
+
+  const btn    = document.getElementById('pd-test-btn');
+  const result = document.getElementById('pd-test-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Testing...';
+  result.style.display = 'none';
+
+  try {
+    const data = await apiFetch('/api/pipedrive-test');
+    result.innerHTML =
+      '<span style="color:#30D158;font-weight:600">Connected</span>' +
+      `<br><span style="color:#8E8E93">User: <b>${data.user}</b> &mdash; ${data.company}</span>`;
+    result.style.display = 'block';
+    toast('Pipedrive connected!');
+  } catch(e) {
+    result.innerHTML = '<span style="color:#FF453A;font-weight:600">Failed: ' + e.message + '</span>';
+    result.style.display = 'block';
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test Connection';
+  }
+}
+
+async function runPipedrive() {
+  const token  = document.getElementById('pd-token').value.trim();
+  const domain = document.getElementById('pd-domain').value.trim() || 'akselera';
+  if (!token) { toast('Paste a Pipedrive API token first', true); return; }
+
+  const status   = document.getElementById('pd-status').value;
+  const fromDate = document.getElementById('pd-from').value.trim();
+  const toDate   = document.getElementById('pd-to').value.trim();
+
+  await _savePipedriveFields(token, domain);
+
+  const btn   = document.getElementById('pd-run-btn');
+  const logEl = document.getElementById('pd-log');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Fetching deals...';
+  logEl.style.display = 'block';
+  logEl.textContent = 'Contacting Pipedrive API…';
+
+  const params = new URLSearchParams({ status });
+  if (fromDate) params.set('from_date', fromDate);
+  if (toDate)   params.set('to_date', toDate);
+
+  try {
+    const data = await apiFetch('/api/pipedrive-fetch?' + params.toString());
+    const lines = [
+      'Done.',
+      `Deals fetched  : ${data.rows}`,
+      `Status filter  : ${data.status_filter}`,
+      `Period         : ${data.period}`,
+    ];
+    if (data.emailed_to && data.emailed_to.length) {
+      lines.push(`Emailed to     : ${data.emailed_to.join(', ')}`);
+      toast('Deals fetched & emailed!');
+    } else {
+      lines.push('No recipients configured — data not emailed.');
+      toast('Deals fetched (no recipients set)', true);
+    }
+    logEl.textContent = lines.join('\n');
+  } catch(e) {
+    logEl.textContent = 'Error: ' + e.message;
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch & Email Deals';
+  }
+}
+
+async function _savePipedriveFields(token, domain) {
+  try {
+    const existing = await apiFetch('/api/config');
+    await apiFetch('/api/config', {
+      method: 'POST',
+      body: JSON.stringify({ ...existing, pipedrive_token: token, pipedrive_domain: domain }),
+    });
+  } catch(e) { /* non-fatal */ }
+}
+
 async function _saveApiFields(token, gqlUrl) {
   try {
     const existing = await apiFetch('/api/config');
@@ -479,6 +609,8 @@ async function loadConfig() {
     if (cfg.email_subject)    document.getElementById('cfg-subject').value = cfg.email_subject;
     if (cfg.api_token)        document.getElementById('cfg-apitoken').value = cfg.api_token;
     if (cfg.graphql_url)      document.getElementById('cfg-gqlurl').value = cfg.graphql_url;
+    if (cfg.pipedrive_token)  document.getElementById('pd-token').value = cfg.pipedrive_token;
+    if (cfg.pipedrive_domain) document.getElementById('pd-domain').value = cfg.pipedrive_domain;
   } catch(e) {}
 }
 
