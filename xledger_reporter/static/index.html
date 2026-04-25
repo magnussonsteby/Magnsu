@@ -184,7 +184,25 @@ textarea { height: 80px; resize: none; font-size: 14px; }
     <label>Email Subject</label>
     <input type="text" id="cfg-subject" placeholder="Xledger Time Report">
   </div>
-  <button class="btn btn-primary" onclick="saveConfig()">Save Settings</button>
+
+  <hr class="divider">
+  <div style="font-size:12px;font-weight:600;color:#6C6C70;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px">App Password (for global access)</div>
+  <div style="font-size:13px;color:#3C3C43;margin-bottom:12px;line-height:1.5">
+    Set a username and password to protect the app when exposed via Cloudflare Tunnel or ngrok.
+    Leave blank for local network use only.
+  </div>
+  <div class="row-2">
+    <div class="form-group" style="margin-bottom:0">
+      <label>Username</label>
+      <input type="text" id="cfg-auth-user" placeholder="admin" autocomplete="off">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>Password</label>
+      <input type="password" id="cfg-auth-pass" placeholder="strong password" autocomplete="new-password">
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="saveConfig()" style="margin-top:14px">Save Settings</button>
   <button class="btn btn-gray btn-sm" onclick="clearPlaybook()" style="margin-top:8px" id="clear-btn">Clear Recorded Steps</button>
 </div>
 
@@ -477,8 +495,9 @@ async function loadConfig() {
     if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
     if (cfg.recipient_emails) document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
     if (cfg.email_subject)    document.getElementById('cfg-subject').value = cfg.email_subject;
-    if (cfg.api_token)        document.getElementById('cfg-apitoken').value = cfg.api_token;
-    if (cfg.graphql_url)      document.getElementById('cfg-gqlurl').value = cfg.graphql_url;
+    if (cfg.api_token)      document.getElementById('cfg-apitoken').value = cfg.api_token;
+    if (cfg.graphql_url)    document.getElementById('cfg-gqlurl').value = cfg.graphql_url;
+    if (cfg.auth_username)  document.getElementById('cfg-auth-user').value = cfg.auth_username;
   } catch(e) {}
 }
 
@@ -491,6 +510,8 @@ async function saveConfig() {
   const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
   const api_token        = document.getElementById('cfg-apitoken').value.trim();
   const graphql_url      = document.getElementById('cfg-gqlurl').value.trim();
+  const auth_username    = document.getElementById('cfg-auth-user').value.trim();
+  const auth_password    = document.getElementById('cfg-auth-pass').value;
 
   if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
 
@@ -498,13 +519,16 @@ async function saveConfig() {
     login_url, xledger_username: username, xledger_password: password,
     recipient_emails, email_subject: subject, headless: false,
   };
-  if (api_token)   payload.api_token   = api_token;
-  if (graphql_url) payload.graphql_url = graphql_url;
+  if (api_token)    payload.api_token    = api_token;
+  if (graphql_url)  payload.graphql_url  = graphql_url;
+  if (auth_username) payload.auth_username = auth_username;
+  if (auth_password) payload.auth_password = auth_password;
 
   try {
     await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(payload) });
     toast('Settings saved');
     document.getElementById('cfg-pass').value = '';
+    document.getElementById('cfg-auth-pass').value = '';
     const badge = document.getElementById('saved-badge');
     badge.style.display = 'inline';
     setTimeout(() => { badge.style.display = 'none'; }, 3000);

@@ -1,7 +1,11 @@
+import base64
+import secrets
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from api.runner import (
     CONFIG_PATH, load_config, save_config,
@@ -12,6 +16,36 @@ from api.xledger_api import XledgerClient, build_html_table
 
 app = FastAPI(title="Xledger Reporter", version="2.0.0")
 STATIC = Path(__file__).parent.parent / "static"
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        cfg = load_config() if CONFIG_PATH.exists() else {}
+        username = cfg.get("auth_username", "").strip()
+        password = cfg.get("auth_password", "").strip()
+        if not username:
+            return await call_next(request)
+
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(auth[6:]).decode("utf-8")
+                u, _, p = decoded.partition(":")
+                u_ok = secrets.compare_digest(u.encode(), username.encode())
+                p_ok = secrets.compare_digest(p.encode(), password.encode())
+                if u_ok and p_ok:
+                    return await call_next(request)
+            except Exception:
+                pass
+
+        return Response(
+            "Unauthorized",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Xledger Reporter"'},
+        )
+
+
+app.add_middleware(BasicAuthMiddleware)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -35,6 +69,7 @@ def get_config():
         return {}
     cfg = load_config()
     cfg.pop("xledger_password", None)
+    cfg.pop("auth_password", None)
     return cfg
 
 
