@@ -124,6 +124,39 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   </div>
 </div>
 
+<!-- API Mode card -->
+<div class="card">
+  <div class="card-title">API Mode <span style="font-size:12px;color:#8E8E93;font-weight:400">(recommended)</span></div>
+  <div style="font-size:14px;color:#3C3C43;margin-bottom:12px;line-height:1.5">
+    Fetches report data directly via Xledger's GraphQL API — no browser needed.<br>
+    Get your token: <b>Administration &rarr; System Access &rarr; API Access Tokens</b>
+  </div>
+  <div class="form-group">
+    <label>API Token</label>
+    <input type="password" id="cfg-apitoken" placeholder="Paste token here">
+  </div>
+  <div class="form-group">
+    <label>GraphQL URL (leave blank for default)</label>
+    <input type="text" id="cfg-gqlurl" placeholder="https://www.xledger.net/graphql">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="testApiConnection()" id="api-test-btn">Test Connection</button>
+  <div id="api-test-result" style="margin-top:12px;font-size:13px;display:none"></div>
+
+  <hr class="divider">
+  <div class="row-2" style="margin-top:4px">
+    <div class="form-group" style="margin-bottom:0">
+      <label>From date</label>
+      <input type="text" id="api-from" placeholder="2025-01-01">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>To date</label>
+      <input type="text" id="api-to" placeholder="2025-12-31">
+    </div>
+  </div>
+  <button class="btn btn-green" onclick="runApi()" id="api-run-btn" style="margin-top:10px">Fetch &amp; Email Report (API)</button>
+  <div id="api-log" style="display:none;margin-top:10px;background:#1C1C1E;border-radius:12px;padding:14px;font-family:monospace;font-size:13px;color:#E5E5EA"></div>
+</div>
+
 <!-- Settings card -->
 <div class="card">
   <div class="card-title">
@@ -132,7 +165,7 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   </div>
 
   <div class="form-group">
-    <label>Xledger Login URL (leave blank for default)</label>
+    <label>Xledger Login URL (browser mode only)</label>
     <input type="text" id="cfg-loginurl" placeholder="https://www.xledger.net/">
   </div>
   <div class="form-group">
@@ -342,6 +375,99 @@ async function clearPlaybook() {
   toast('Recorded steps cleared');
 }
 
+// ---- API Mode ----
+async function testApiConnection() {
+  const token = document.getElementById('cfg-apitoken').value.trim();
+  const gqlUrl = document.getElementById('cfg-gqlurl').value.trim();
+  if (!token) { toast('Paste an API token first', true); return; }
+
+  // Save token + URL before testing
+  await _saveApiFields(token, gqlUrl);
+
+  const btn = document.getElementById('api-test-btn');
+  const result = document.getElementById('api-test-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Testing...';
+  result.style.display = 'none';
+
+  try {
+    const data = await apiFetch('/api/api-test');
+    let html = '<span style="color:#30D158;font-weight:600">Connected</span>';
+    if (data.time_fields && data.time_fields.length) {
+      html += '<br><span style="color:#8E8E93">Time-related queries found: ' +
+        data.time_fields.map(f => `<b>${f.name}</b>`).join(', ') + '</span>';
+    } else {
+      html += '<br><span style="color:#FF9F0A">No time-related queries found — check token permissions</span>';
+    }
+    result.innerHTML = html;
+    result.style.display = 'block';
+    toast('Connection successful');
+  } catch(e) {
+    result.innerHTML = '<span style="color:#FF453A;font-weight:600">Failed: ' + e.message + '</span>';
+    result.style.display = 'block';
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test Connection';
+  }
+}
+
+async function runApi() {
+  const token = document.getElementById('cfg-apitoken').value.trim();
+  if (!token) { toast('Paste an API token first', true); return; }
+
+  const gqlUrl  = document.getElementById('cfg-gqlurl').value.trim();
+  const fromDate = document.getElementById('api-from').value.trim();
+  const toDate   = document.getElementById('api-to').value.trim();
+
+  await _saveApiFields(token, gqlUrl);
+
+  const btn = document.getElementById('api-run-btn');
+  const logEl = document.getElementById('api-log');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Fetching...';
+  logEl.style.display = 'block';
+  logEl.textContent = 'Contacting Xledger API…';
+
+  const params = new URLSearchParams();
+  if (fromDate) params.set('from_date', fromDate);
+  if (toDate)   params.set('to_date', toDate);
+  const url = '/api/api-fetch' + (params.toString() ? '?' + params.toString() : '');
+
+  try {
+    const data = await apiFetch(url);
+    const lines = [
+      'Done.',
+      `Rows fetched : ${data.rows}`,
+      `Query used   : ${data.query_used}`,
+      `Period       : ${data.period}`,
+    ];
+    if (data.emailed_to && data.emailed_to.length) {
+      lines.push(`Emailed to   : ${data.emailed_to.join(', ')}`);
+      toast('Report fetched & emailed!');
+    } else {
+      lines.push('No recipients configured — data not emailed.');
+      toast('Report fetched (no recipients set)', true);
+    }
+    logEl.textContent = lines.join('\n');
+  } catch(e) {
+    logEl.textContent = 'Error: ' + e.message;
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch & Email Report (API)';
+  }
+}
+
+async function _saveApiFields(token, gqlUrl) {
+  try {
+    const existing = await apiFetch('/api/config');
+    const patch = { ...existing, api_token: token };
+    if (gqlUrl) patch.graphql_url = gqlUrl;
+    await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(patch) });
+  } catch(e) { /* non-fatal */ }
+}
+
 // ---- Config ----
 async function loadConfig() {
   try {
@@ -351,6 +477,8 @@ async function loadConfig() {
     if (cfg.xledger_username) document.getElementById('cfg-user').value = cfg.xledger_username;
     if (cfg.recipient_emails) document.getElementById('cfg-emails').value = cfg.recipient_emails.join('\n');
     if (cfg.email_subject)    document.getElementById('cfg-subject').value = cfg.email_subject;
+    if (cfg.api_token)        document.getElementById('cfg-apitoken').value = cfg.api_token;
+    if (cfg.graphql_url)      document.getElementById('cfg-gqlurl').value = cfg.graphql_url;
   } catch(e) {}
 }
 
@@ -361,16 +489,20 @@ async function saveConfig() {
   const emailsRaw        = document.getElementById('cfg-emails').value;
   const subject          = document.getElementById('cfg-subject').value.trim() || 'Xledger Time Report';
   const recipient_emails = emailsRaw.split('\n').map(e => e.trim()).filter(Boolean);
+  const api_token        = document.getElementById('cfg-apitoken').value.trim();
+  const graphql_url      = document.getElementById('cfg-gqlurl').value.trim();
 
-  if (!username)              { toast('Username is required', true); return; }
   if (!recipient_emails.length) { toast('At least one recipient required', true); return; }
 
+  const payload = {
+    login_url, xledger_username: username, xledger_password: password,
+    recipient_emails, email_subject: subject, headless: false,
+  };
+  if (api_token)   payload.api_token   = api_token;
+  if (graphql_url) payload.graphql_url = graphql_url;
+
   try {
-    await apiFetch('/api/config', {
-      method: 'POST',
-      body: JSON.stringify({ login_url, xledger_username: username, xledger_password: password,
-        recipient_emails, email_subject: subject, headless: false }),
-    });
+    await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(payload) });
     toast('Settings saved');
     document.getElementById('cfg-pass').value = '';
     const badge = document.getElementById('saved-badge');
