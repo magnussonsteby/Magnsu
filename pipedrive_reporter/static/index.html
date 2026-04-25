@@ -115,7 +115,7 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   <div style="display:flex;background:#F2F2F7;border-radius:12px;padding:3px;gap:2px;margin-bottom:4px">
     <button id="out-email"  onclick="setOutput('email')"  class="seg-btn seg-active">Email</button>
     <button id="out-screen" onclick="setOutput('screen')" class="seg-btn">View on screen</button>
-    <button id="out-pdf"    onclick="setOutput('pdf')"    class="seg-btn">Download PDF</button>
+    <button id="out-excel"  onclick="setOutput('excel')"  class="seg-btn">Download Excel</button>
   </div>
 
   <button class="btn btn-green" onclick="fetchDeals()" id="fetch-btn" style="margin-top:6px">Fetch &amp; Email Deals</button>
@@ -221,10 +221,10 @@ let _outputMode = 'email';
 
 function setOutput(mode) {
   _outputMode = mode;
-  ['email', 'screen', 'pdf'].forEach(m => {
+  ['email', 'screen', 'excel'].forEach(m => {
     document.getElementById('out-' + m).classList.toggle('seg-active', m === mode);
   });
-  const labels = { email: 'Fetch & Email Deals', screen: 'Fetch & View on Screen', pdf: 'Fetch & Download PDF' };
+  const labels = { email: 'Fetch & Email Deals', screen: 'Fetch & View on Screen', excel: 'Fetch & Download Excel' };
   document.getElementById('fetch-btn').textContent = labels[mode];
 }
 
@@ -243,10 +243,20 @@ async function fetchDeals() {
   if (fromDate) params.set('from_date', fromDate);
   if (toDate)   params.set('to_date', toDate);
 
-  // Screen / PDF: open preview page in a new tab
-  if (_outputMode === 'screen' || _outputMode === 'pdf') {
-    if (_outputMode === 'pdf') params.set('pdf', '1');
+  // View on screen: open HTML preview in new tab
+  if (_outputMode === 'screen') {
     window.open('/api/preview?' + params.toString(), '_blank');
+    return;
+  }
+
+  // Download Excel: trigger file download
+  if (_outputMode === 'excel') {
+    const a = document.createElement('a');
+    a.href = '/api/excel?' + params.toString();
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     return;
   }
 

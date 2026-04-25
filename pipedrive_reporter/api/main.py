@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.pipedrive_api import PipedriveClient, build_html_table
+from api.pipedrive_api import PipedriveClient, build_html_table, build_excel_bytes
 
 app = FastAPI(title="Pipedrive Reporter", version="1.0.0")
 STATIC = Path(__file__).parent.parent / "static"
@@ -122,6 +122,27 @@ def _build_preview_html(
 <script>{auto_print}</script>
 </body>
 </html>"""
+
+
+@app.get("/api/excel")
+async def api_excel(
+    status: str = "open",
+    owner_id: int = None,
+    from_date: str = None,
+    to_date: str = None,
+):
+    """Download deals as an Excel (.xlsx) file."""
+    client = _client()
+    deals = await client.fetch_all_deals(
+        status=status, owner_id=owner_id, from_date=from_date, to_date=to_date
+    )
+    xlsx = build_excel_bytes(deals)
+    filename = f"pipedrive_deals_{status}.xlsx"
+    return StreamingResponse(
+        iter([xlsx]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/preview", response_class=HTMLResponse)

@@ -1,20 +1,88 @@
 """
-Pipedrive REST API client.
+Pipedrive REST API v1 client.
 
 Authentication: Settings > Personal preferences > API
 Header: x-api-token: <TOKEN>
 """
+from io import BytesIO
 import httpx
+
+
+# Ordered list of (api_key, display_label) for all standard deal fields.
+# user_id is the owner object in v1; person_name / org_name are direct strings.
+_FIELD_MAP = [
+    # Core
+    ("id",                      "ID"),
+    ("title",                   "Title"),
+    ("status",                  "Status"),
+    ("value",                   "Value"),
+    ("currency",                "Currency"),
+    ("formatted_value",         "Formatted Value"),
+    ("weighted_value",          "Weighted Value"),
+    ("probability",             "Probability %"),
+    # People / orgs
+    ("user_id",                 "Owner"),           # object → extract name
+    ("person_name",             "Contact"),
+    ("org_name",                "Organization"),
+    # Pipeline
+    ("pipeline_id",             "Pipeline ID"),
+    ("stage_id",                "Stage ID"),
+    # Dates
+    ("expected_close_date",     "Expected Close"),
+    ("add_time",                "Created"),
+    ("update_time",             "Updated"),
+    ("stage_change_time",       "Stage Changed"),
+    ("close_time",              "Closed"),
+    ("won_time",                "Won"),
+    ("first_won_time",          "First Won"),
+    ("lost_time",               "Lost"),
+    ("rotten_time",             "Rotten Since"),
+    ("lost_reason",             "Lost Reason"),
+    # Activities
+    ("next_activity_date",      "Next Activity Date"),
+    ("next_activity_subject",   "Next Activity Subject"),
+    ("next_activity_type",      "Next Activity Type"),
+    ("last_activity_date",      "Last Activity Date"),
+    ("last_incoming_mail_time", "Last Incoming Email"),
+    ("last_outgoing_mail_time", "Last Outgoing Email"),
+    # Counts
+    ("activities_count",        "Activities"),
+    ("done_activities_count",   "Done Activities"),
+    ("undone_activities_count", "Open Activities"),
+    ("notes_count",             "Notes"),
+    ("files_count",             "Files"),
+    ("email_messages_count",    "Emails"),
+    ("followers_count",         "Followers"),
+    ("participants_count",      "Participants"),
+    ("products_count",          "Products"),
+    # Revenue intelligence (when enabled)
+    ("acv",                     "ACV"),
+    ("arr",                     "ARR"),
+    ("mrr",                     "MRR"),
+    # Misc
+    ("label",                   "Label"),
+    ("visible_to",              "Visibility"),
+    ("cc_email",                "Deal Email"),
+]
+
+# Fields that are redundant or internal — never included in output
+_SKIP_FIELDS = {
+    "creator_user_id", "owner_id", "person_id", "org_id",
+    "org_hidden", "person_hidden", "active", "deleted",
+    "next_activity_id", "last_activity_id",
+    "next_activity_time", "next_activity_duration", "next_activity_note",
+    "weighted_value_currency", "stage_order_nr",
+    "reference_activities_count", "formatted_weighted_value",
+}
+
+_KNOWN_API_KEYS = {f[0] for f in _FIELD_MAP} | _SKIP_FIELDS
 
 
 class PipedriveClient:
     def __init__(self, token: str, company_domain: str = "akselera"):
         self.base_v1 = f"https://{company_domain}.pipedrive.com/api/v1"
         self.base_v2 = f"https://{company_domain}.pipedrive.com/api/v2"
-        self.headers = {
-            "x-api-token": token,
-            "Accept": "application/json",
-        }
+        self.headers = {"x-api-token": token, "Accept": "application/json"}
 
     async def _get(self, url: str, params: dict | None = None) -> dict:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -30,7 +98,7 @@ class PipedriveClient:
         return body.get("data", {})
 
     async def raw_deals_sample(self) -> dict:
-        """Return raw first-page response from both v1 and v2 for debugging."""
+        """Raw first-page response from v1 and v2 for debugging."""
         results = {}
         for label, url in (("v1", f"{self.base_v1}/deals"), ("v2", f"{self.base_v2}/deals")):
             try:
@@ -39,13 +107,12 @@ class PipedriveClient:
                         url, params={"limit": 3, "status": "open"}, headers=self.headers
                     )
                     body = resp.json()
+                    data = body.get("data") or []
                     results[label] = {
                         "status_code": resp.status_code,
                         "success": body.get("success"),
-                        "data_type": type(body.get("data")).__name__,
-                        "data_len": len(body.get("data") or []) if isinstance(body.get("data"), list) else "n/a",
-                        "top_keys": list((body.get("data") or [{}])[0].keys())[:10]
-                            if isinstance(body.get("data"), list) and body.get("data") else [],
+                        "data_len": len(data) if isinstance(data, list) else "n/a",
+                        "top_keys": list(data[0].keys())[:15] if data else [],
                         "additional_data": body.get("additional_data"),
                         "error": body.get("error"),
                     }
@@ -54,12 +121,10 @@ class PipedriveClient:
         return results
 
     async def fetch_owners(self) -> list[dict]:
-        """Return all active Pipedrive users as [{id, name}]."""
         body = await self._get(f"{self.base_v1}/users")
-        users = body.get("data") or []
         return [
             {"id": u["id"], "name": u["name"]}
-            for u in users
+            for u in (body.get("data") or [])
             if u.get("active_flag")
         ]
 
@@ -92,12 +157,13 @@ class PipedriveClient:
             if not data:
                 break
             for deal in data:
-                flat = _flatten_deal(deal)
-                if from_date and flat["Updated"] and flat["Updated"] < from_date:
-                    continue
-                if to_date and flat["Updated"] and flat["Updated"] > to_date:
-                    continue
-                rows.append(flat)
+                if from_date or to_date:
+                    ts = (deal.get("update_time") or "")[:10]
+                    if from_date and ts and ts < from_date:
+                        continue
+                    if to_date and ts and ts > to_date:
+                        continue
+                rows.append(_flatten_deal(deal))
             pagination = (body.get("additional_data") or {}).get("pagination", {})
             if not pagination.get("more_items_in_collection"):
                 break
@@ -113,20 +179,27 @@ def _name_of(obj) -> str:
     return str(obj)
 
 
+def _val(v):
+    """Coerce any field value to a serialisable scalar."""
+    if v is None:
+        return ""
+    if isinstance(v, dict):
+        return _name_of(v)
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v) if v else ""
+    return v
+
+
 def _flatten_deal(d: dict) -> dict:
-    return {
-        "ID":             d.get("id", ""),
-        "Title":          d.get("title", ""),
-        "Value":          d.get("value", ""),
-        "Currency":       d.get("currency", ""),
-        "Status":         d.get("status", ""),
-        "Owner":          _name_of(d.get("owner_id")),
-        "Organization":   _name_of(d.get("org_id")),
-        "Contact":        _name_of(d.get("person_id")),
-        "Expected Close": (d.get("expected_close_date") or "")[:10],
-        "Added":          (d.get("add_time") or "")[:10],
-        "Updated":        (d.get("update_time") or "")[:10],
-    }
+    result = {}
+    for api_key, label in _FIELD_MAP:
+        result[label] = _val(d.get(api_key))
+    # Append custom / unknown scalar fields (hash-keyed custom deal fields)
+    for key, val in d.items():
+        if key in _KNOWN_API_KEYS or isinstance(val, (dict, list)) or val is None:
+            continue
+        result[key] = val
+    return result
 
 
 def build_html_table(rows: list[dict]) -> str:
@@ -144,3 +217,47 @@ def build_html_table(rows: list[dict]) -> str:
   <thead style="background:#f0f0f5"><tr>{header_row}</tr></thead>
   <tbody>{data_rows}</tbody>
 </table>"""
+
+
+def build_excel_bytes(rows: list[dict]) -> bytes:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Deals"
+
+    if not rows:
+        ws.append(["No deals found"])
+        buf = BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    headers = list(rows[0].keys())
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill("solid", fgColor="2F5496")
+    center = Alignment(horizontal="center", vertical="center", wrap_text=False)
+
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center
+
+    for row_idx, row in enumerate(rows, 2):
+        for col_idx, header in enumerate(headers, 1):
+            ws.cell(row=row_idx, column=col_idx, value=row.get(header, "") or "")
+
+    # Auto-width (cap at 60 chars)
+    for col_idx, header in enumerate(headers, 1):
+        col_vals = [str(rows[r].get(header, "") or "") for r in range(len(rows))]
+        max_len = max(len(header), max((len(v) for v in col_vals), default=0))
+        ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 3, 60)
+
+    ws.freeze_panes = "A2"
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
