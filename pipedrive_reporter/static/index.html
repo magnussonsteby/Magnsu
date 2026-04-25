@@ -76,7 +76,8 @@ textarea { height: 80px; resize: none; font-size: 14px; }
   </div>
   <div class="form-group">
     <label>API Token</label>
-    <input type="password" id="pd-token" placeholder="Paste token here">
+    <input type="password" id="pd-token" placeholder="Paste token here"
+           onblur="if(this.value.trim()) { _saveConnectionFields().then(() => loadOwners()); }">
   </div>
   <button class="btn btn-primary btn-sm" onclick="testConnection()" id="test-btn">Test Connection</button>
   <div id="test-result" style="margin-top:10px;font-size:13px;display:none"></div>
@@ -95,10 +96,17 @@ textarea { height: 80px; resize: none; font-size: 14px; }
     </select>
   </div>
   <div class="form-group">
-    <label>Owner</label>
+    <label style="display:flex;justify-content:space-between;align-items:center">
+      Owner
+      <button onclick="loadOwners(true)" id="owners-refresh-btn"
+        style="font-size:11px;font-weight:600;color:#007AFF;background:none;border:none;cursor:pointer;padding:0">
+        ↻ Refresh
+      </button>
+    </label>
     <select id="pd-owner">
       <option value="">All owners</option>
     </select>
+    <div id="owners-msg" style="font-size:12px;color:#8E8E93;margin-top:4px;display:none"></div>
   </div>
   <div class="row-2">
     <div class="form-group">
@@ -201,7 +209,10 @@ async function testConnection() {
   }
 }
 
-async function loadOwners() {
+async function loadOwners(showFeedback = false) {
+  const msg = document.getElementById('owners-msg');
+  const btn = document.getElementById('owners-refresh-btn');
+  if (showFeedback) { btn.textContent = '↻ Loading…'; btn.disabled = true; }
   try {
     const owners = await apiFetch('/api/owners');
     const sel = document.getElementById('pd-owner');
@@ -214,7 +225,19 @@ async function loadOwners() {
       if (String(o.id) === current) opt.selected = true;
       sel.appendChild(opt);
     });
-  } catch(e) { /* non-fatal — token may not be set yet */ }
+    if (msg) {
+      msg.textContent = `${owners.length} owner${owners.length !== 1 ? 's' : ''} loaded`;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    }
+  } catch(e) {
+    if (showFeedback) {
+      if (msg) { msg.textContent = 'Could not load owners — check token'; msg.style.display = 'block'; }
+    }
+  } finally {
+    btn.textContent = '↻ Refresh';
+    btn.disabled = false;
+  }
 }
 
 let _outputMode = 'email';

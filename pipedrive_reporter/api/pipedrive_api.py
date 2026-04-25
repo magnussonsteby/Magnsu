@@ -120,6 +120,15 @@ class PipedriveClient:
                 results[label] = {"error": str(e)}
         return results
 
+    async def fetch_deal_field_labels(self) -> dict[str, str]:
+        """Return {field_key: display_name} for all deal fields (including custom fields)."""
+        body = await self._get(f"{self.base_v1}/dealFields")
+        return {
+            f["key"]: f["name"]
+            for f in (body.get("data") or [])
+            if f.get("key") and f.get("name")
+        }
+
     async def fetch_owners(self) -> list[dict]:
         body = await self._get(f"{self.base_v1}/users")
         return [
@@ -147,6 +156,7 @@ class PipedriveClient:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> list[dict]:
+        field_labels = await self.fetch_deal_field_labels()
         rows: list[dict] = []
         start = 0
         while True:
@@ -163,7 +173,7 @@ class PipedriveClient:
                         continue
                     if to_date and ts and ts > to_date:
                         continue
-                rows.append(_flatten_deal(deal))
+                rows.append(_flatten_deal(deal, field_labels))
             pagination = (body.get("additional_data") or {}).get("pagination", {})
             if not pagination.get("more_items_in_collection"):
                 break
@@ -190,15 +200,16 @@ def _val(v):
     return v
 
 
-def _flatten_deal(d: dict) -> dict:
+def _flatten_deal(d: dict, field_labels: dict[str, str] | None = None) -> dict:
     result = {}
     for api_key, label in _FIELD_MAP:
         result[label] = _val(d.get(api_key))
-    # Append custom / unknown scalar fields (hash-keyed custom deal fields)
+    # Append custom / unknown scalar fields using proper label from dealFields if available
     for key, val in d.items():
         if key in _KNOWN_API_KEYS or isinstance(val, (dict, list)) or val is None:
             continue
-        result[key] = val
+        label = (field_labels or {}).get(key, key)
+        result[label] = val
     return result
 
 
