@@ -67,6 +67,53 @@ async def api_test():
     }
 
 
+@app.get("/api/preview", response_class=HTMLResponse)
+async def api_preview(
+    status: str = "open",
+    from_date: str = None,
+    to_date: str = None,
+    pdf: bool = False,
+):
+    """Return a standalone HTML page with the deals table (for on-screen view or PDF print)."""
+    client = _client()
+    deals = await client.fetch_all_deals(
+        status=status, from_date=from_date, to_date=to_date
+    )
+    html_table = build_html_table(deals)
+    period = f"{from_date or 'all'} to {to_date or 'today'}"
+    auto_print = "window.addEventListener('load', () => window.print());" if pdf else ""
+
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pipedrive Deals &mdash; {status}</title>
+<style>
+  body {{ font-family: Arial, sans-serif; padding: 28px; color: #1C1C1E; }}
+  h1 {{ font-size: 22px; font-weight: 800; margin-bottom: 4px; }}
+  .meta {{ font-size: 13px; color: #6C6C70; margin-bottom: 20px; }}
+  table {{ border-collapse: collapse; font-size: 13px; width: 100%; }}
+  th {{ background: #f0f0f5; padding: 8px 10px; text-align: left; border: 1px solid #ddd; }}
+  td {{ padding: 7px 10px; border: 1px solid #e0e0e0; }}
+  tr:nth-child(even) td {{ background: #fafafa; }}
+  .print-btn {{
+    display: inline-block; margin-bottom: 18px; padding: 9px 20px;
+    background: #007AFF; color: #fff; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }}
+  @media print {{ .print-btn {{ display: none; }} }}
+</style>
+</head>
+<body>
+<h1>Pipedrive Deals &mdash; {status}</h1>
+<div class="meta">Period: {period} &nbsp;&bull;&nbsp; {len(deals)} deal{'s' if len(deals) != 1 else ''}</div>
+<button class="print-btn" onclick="window.print()">&#x1F4E5; Save as PDF / Print</button>
+{html_table}
+<script>{auto_print}</script>
+</body>
+</html>""")
+
+
 @app.get("/api/fetch")
 async def api_fetch(
     status: str = "open",
