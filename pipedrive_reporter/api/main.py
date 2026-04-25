@@ -51,6 +51,13 @@ def _client() -> PipedriveClient:
     return PipedriveClient(token=token, company_domain=domain)
 
 
+@app.get("/api/debug")
+async def api_debug():
+    """Return raw Pipedrive API responses for diagnosing deal fetch issues."""
+    client = _client()
+    return await client.raw_deals_sample()
+
+
 @app.get("/api/test")
 async def api_test():
     """Verify the API token and return the current user's name and company."""

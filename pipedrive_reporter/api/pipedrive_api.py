@@ -1,9 +1,8 @@
 """
-Pipedrive REST API v2 client.
+Pipedrive REST API client.
 
 Authentication: Settings > Personal preferences > API
 Header: x-api-token: <TOKEN>
-Base URL: https://{company_domain}.pipedrive.com/api/v2
 """
 import httpx
 
@@ -27,20 +26,44 @@ class PipedriveClient:
             return body
 
     async def ping(self) -> dict:
-        """Verify token and return current user info."""
         body = await self._get(f"{self.base_v1}/users/me")
         return body.get("data", {})
 
-    async def fetch_deals_page(
+    async def raw_deals_sample(self) -> dict:
+        """Return raw first-page response from both v1 and v2 for debugging."""
+        results = {}
+        for label, url in (("v1", f"{self.base_v1}/deals"), ("v2", f"{self.base_v2}/deals")):
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(
+                        url, params={"limit": 3, "status": "open"}, headers=self.headers
+                    )
+                    body = resp.json()
+                    results[label] = {
+                        "status_code": resp.status_code,
+                        "success": body.get("success"),
+                        "data_type": type(body.get("data")).__name__,
+                        "data_len": len(body.get("data") or []) if isinstance(body.get("data"), list) else "n/a",
+                        "top_keys": list((body.get("data") or [{}])[0].keys())[:10]
+                            if isinstance(body.get("data"), list) and body.get("data") else [],
+                        "additional_data": body.get("additional_data"),
+                        "error": body.get("error"),
+                    }
+            except Exception as e:
+                results[label] = {"error": str(e)}
+        return results
+
+    async def fetch_deals_page_v1(
         self,
         status: str = "open",
-        cursor: str | None = None,
+        start: int = 0,
         limit: int = 500,
     ) -> dict:
-        params: dict = {"limit": limit, "status": status}
-        if cursor:
-            params["cursor"] = cursor
-        return await self._get(f"{self.base_v2}/deals", params)
+        return await self._get(f"{self.base_v1}/deals", {
+            "status": status,
+            "start": start,
+            "limit": limit,
+        })
 
     async def fetch_all_deals(
         self,
@@ -49,20 +72,23 @@ class PipedriveClient:
         to_date: str | None = None,
     ) -> list[dict]:
         rows: list[dict] = []
-        cursor: str | None = None
+        start = 0
         while True:
-            body = await self.fetch_deals_page(status=status, cursor=cursor)
-            for deal in body.get("data") or []:
+            body = await self.fetch_deals_page_v1(status=status, start=start)
+            data = body.get("data") or []
+            if not data:
+                break
+            for deal in data:
                 flat = _flatten_deal(deal)
                 if from_date and flat["Updated"] and flat["Updated"] < from_date:
                     continue
                 if to_date and flat["Updated"] and flat["Updated"] > to_date:
                     continue
                 rows.append(flat)
-            next_cursor = (body.get("additional_data") or {}).get("next_cursor")
-            if not next_cursor:
+            pagination = (body.get("additional_data") or {}).get("pagination", {})
+            if not pagination.get("more_items_in_collection"):
                 break
-            cursor = next_cursor
+            start = pagination.get("next_start", start + 500)
         return rows
 
 
