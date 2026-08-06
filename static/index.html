@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Magnsu</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  background: #F2F2F7;
+  color: #1C1C1E;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 84px;
+}
+
+/* -- Tab bar -- */
+.tab-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: rgba(249,249,249,0.94);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0,0,0,0.1);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 100;
+}
+.tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; padding: 8px 0 4px;
+  cursor: pointer; color: #8E8E93; font-size: 10px; gap: 3px;
+  transition: color 0.15s;
+}
+.tab-item.active { color: #007AFF; }
+.tab-item svg { width: 26px; height: 26px; stroke-linecap: round; stroke-linejoin: round; }
+
+/* -- Panels -- */
+.panel { display: none; padding: 20px 16px 8px; }
+.panel.active { display: block; }
+
+.page-title {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+  margin-bottom: 20px; color: #1C1C1E;
+}
+
+/* -- Cards -- */
+.card {
+  background: #fff; border-radius: 16px;
+  padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* -- Forms -- */
+.form-group { margin-bottom: 14px; }
+.form-group:last-of-type { margin-bottom: 0; }
+
+label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: #6C6C70; margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+select, input[type=text], input[type=number], input[type=date] {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid #E5E5EA; border-radius: 12px;
+  font-size: 16px; color: #1C1C1E; background: #fff;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s;
+}
+select:focus, input:focus { outline: none; border-color: #007AFF; }
+
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: ''; position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent; border-top: 6px solid #8E8E93;
+  margin-top: 3px; pointer-events: none;
+}
+
+/* -- Buttons -- */
+.btn {
+  width: 100%; padding: 15px; border: none; border-radius: 14px;
+  font-size: 17px; font-weight: 600; cursor: pointer;
+  transition: transform 0.1s, opacity 0.15s;
+  margin-top: 6px;
+}
+.btn:active { transform: scale(0.98); opacity: 0.85; }
+.btn-primary { background: #007AFF; color: #fff; }
+.btn-danger  { background: #FF3B30; color: #fff; }
+.btn:disabled { background: #C7C7CC; cursor: not-allowed; }
+
+/* -- Summary card -- */
+.summary-card {
+  background: linear-gradient(135deg, #007AFF 0%, #0040CC 100%);
+  color: #fff; border-radius: 18px; padding: 22px 20px; margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0,122,255,0.35);
+}
+.summary-card .s-label { font-size: 13px; opacity: 0.8; font-weight: 600; letter-spacing: 0.3px; }
+.summary-card .s-value { font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+.summary-card .s-sub   { font-size: 14px; opacity: 0.75; margin-top: 4px; }
+
+/* -- Entry rows -- */
+.entry-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid #F2F2F7;
+}
+.entry-row:last-child { border-bottom: none; }
+.entry-title { font-size: 15px; font-weight: 600; }
+.entry-sub   { font-size: 13px; color: #6C6C70; margin-top: 2px; }
+.entry-hours { font-size: 22px; font-weight: 800; color: #007AFF; }
+.delete-btn  {
+  background: none; border: none; color: #FF3B30;
+  font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 2px;
+  padding: 4px 0;
+}
+
+/* -- Badges -- */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
+}
+.b-blue   { background: #E5F1FF; color: #0056CC; }
+.b-green  { background: #E5F7ED; color: #1D8348; }
+.b-orange { background: #FFF3E0; color: #CC6600; }
+.b-red    { background: #FFE8E7; color: #CC1A15; }
+.b-gray   { background: #F0F0F5; color: #555; }
+
+/* -- Section header -- */
+.section-header {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+  margin: 24px 0 10px; color: #1C1C1E;
+}
+
+/* -- Toast -- */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: #1C1C1E; color: #fff; padding: 12px 22px;
+  border-radius: 22px; font-size: 14px; font-weight: 500;
+  z-index: 999; opacity: 0; transition: opacity 0.25s;
+  white-space: nowrap; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* -- Empty state -- */
+.empty { text-align: center; padding: 48px 20px; color: #8E8E93; }
+.empty-icon { font-size: 44px; margin-bottom: 10px; }
+.empty-text { font-size: 16px; font-weight: 500; }
+
+/* -- Row groups -- */
+.row-2 { display: flex; gap: 10px; }
+.row-2 > * { flex: 1; }
+
+/* -- Spinner -- */
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* -- Add button -- */
+.add-btn {
+  width: 100%; padding: 13px; margin-bottom: 12px;
+  border: 2px dashed #C7C7CC; border-radius: 14px;
+  background: transparent; color: #007AFF;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.add-btn:active { background: #E5F1FF; border-color: #007AFF; }
+
+/* -- Collapsible create form -- */
+.create-form { display: none; }
+.create-form.open { display: block; }
+
+/* -- Modal -- */
+#modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 200; display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+#modal-overlay.show { opacity: 1; pointer-events: all; }
+#modal-box {
+  background: #fff; border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 100%; max-width: 480px; margin: 0 auto;
+  max-height: 90vh; overflow-y: auto;
+  transform: translateY(100%); transition: transform 0.25s ease;
+}
+#modal-overlay.show #modal-box { transform: translateY(0); }
+#modal-title { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
+
+/* -- Card action buttons -- */
+.action-row { display: flex; gap: 8px; margin-top: 10px; }
+.edit-btn {
+  flex: 1; padding: 7px; border: 1.5px solid #007AFF; border-radius: 10px;
+  background: transparent; color: #007AFF; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.del-btn {
+  flex: 1; padding: 7px; border: 1.5px solid #FF3B30; border-radius: 10px;
+  background: transparent; color: #FF3B30; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.add-member-btn {
+  flex: 1; padding: 7px; border: 1.5px solid #34C759; border-radius: 10px;
+  background: transparent; color: #1D8348; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- ============== LOG ============== -->
+<div id="panel-log" class="panel active">
+  <div class="page-title">Log Hours</div>
+  <div class="card">
+    <div class="form-group">
+      <label>Team Member</label>
+      <div class="select-wrap"><select id="log-user"></select></div>
+    </div>
+    <div class="form-group">
+      <label>Task</label>
+      <div class="select-wrap"><select id="log-task"></select></div>
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="log-date">
+      </div>
+      <div class="form-group">
+        <label>Hours</label>
+        <input type="number" id="log-hours" min="0.5" max="24" step="0.5" placeholder="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" id="log-notes" placeholder="What did you work on?">
+    </div>
+    <button class="btn btn-primary" id="log-btn" onclick="submitLog()">Log Hours</button>
+  </div>
+</div>
+
+<!-- ============== HISTORY ============== -->
+<div id="panel-history" class="panel">
+  <div class="page-title">History</div>
+
+  <div class="summary-card">
+    <div class="s-label">TOTAL HOURS</div>
+    <div class="s-value" id="h-total">-</div>
+    <div class="s-sub" id="h-count">Loading...</div>
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label>Filter by Task</label>
+      <div class="select-wrap">
+        <select id="f-task" onchange="loadHistory()">
+          <option value="">All tasks</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="form-group" style="margin-bottom:0">
+        <label>From</label>
+        <input type="date" id="f-from" onchange="loadHistory()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>To</label>
+        <input type="date" id="f-to" onchange="loadHistory()">
+      </div>
+    </div>
+  </div>
+
+  <div id="history-list"></div>
+</div>
+
+<!-- ============== PROJECTS ============== -->
+<div id="panel-projects" class="panel">
+  <div class="page-title">Projects</div>
+
+  <button class="add-btn" onclick="toggleForm('new-project-form')">+ New Project</button>
+  <div id="new-project-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Project Name</label>
+        <input type="text" id="np-name" placeholder="e.g. Customer 2">
+      </div>
+      <div class="form-group">
+        <label>Team</label>
+        <div class="select-wrap"><select id="np-team"></select></div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <div class="select-wrap">
+          <select id="np-status">
+            <option value="active">Active</option>
+            <option value="draft" selected>Draft</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateProject()">Create Project</button>
+    </div>
+  </div>
+
+  <button class="add-btn" onclick="toggleForm('new-task-form')">+ New Task</button>
+  <div id="new-task-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Task Title</label>
+        <input type="text" id="nt-title" placeholder="e.g. Week two">
+      </div>
+      <div class="form-group">
+        <label>Project</label>
+        <div class="select-wrap"><select id="nt-project"></select></div>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <div class="select-wrap">
+          <select id="nt-priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateTask()">Create Task</button>
+    </div>
+  </div>
+
+  <div id="projects-list"></div>
+</div>
+
+<!-- ============== TEAM ============== -->
+<div id="panel-team" class="panel">
+  <div class="page-title">Team</div>
+
+  <button class="add-btn" onclick="toggleForm('new-member-form')">+ New Member</button>
+  <div id="new-member-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="nm-name" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="text" id="nm-email" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <div class="select-wrap">
+          <select id="nm-role">
+            <option value="admin">Admin</option>
+            <option value="member" selected>Member</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateMember()">Add Member</button>
+    </div>
+  </div>
+
+  <button class="add-btn" onclick="toggleForm('new-team-form')">+ New Team</button>
+  <div id="new-team-form" class="create-form">
+    <div class="card">
+      <div class="form-group">
+        <label>Team Name</label>
+        <input type="text" id="nteam-name" placeholder="e.g. Design">
+      </div>
+      <div class="form-group">
+        <label>Owner</label>
+        <div class="select-wrap"><select id="nteam-owner"></select></div>
+      </div>
+      <button class="btn btn-primary" onclick="submitCreateTeam()">Create Team</button>
+    </div>
+  </div>
+
+  <div id="team-content"></div>
+</div>
+
+<!-- ============== MODAL ============== -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <button class="btn btn-primary" id="modal-save" onclick="modalSave()" style="margin-top:14px">Save</button>
+    <button class="btn" style="background:#F2F2F7;color:#1C1C1E;margin-top:8px" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- ============== TAB BAR ============== -->
+<nav class="tab-bar">
+  <div class="tab-item active" id="tab-log" onclick="switchTab('log')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+    Log
+  </div>
+  <div class="tab-item" id="tab-history" onclick="switchTab('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+      <line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+    History
+  </div>
+  <div class="tab-item" id="tab-projects" onclick="switchTab('projects')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    Projects
+  </div>
+  <div class="tab-item" id="tab-team" onclick="switchTab('team')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    Team
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+// -- Globals --------------------------------------------------
+let _users = [], _tasks = [], _projects = [];
+const _inited = {};
+let _activeTab = 'log';
+
+// -- API helper -----------------------------------------------
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Something went wrong');
+  return data;
+}
+
+// -- Toast ----------------------------------------------------
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#FF3B30' : '#1C1C1E';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// -- Helpers --------------------------------------------------
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmtDate(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US',
+    { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function setOptions(id, items, val, label) {
+  document.getElementById(id).innerHTML =
+    items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
+}
+
+async function loadBaseData() {
+  [_users, _tasks, _projects] = await Promise.all([
+    api('/users/'), api('/tasks/'), api('/projects/'),
+  ]);
+}
+
+function taskLabel(t) {
+  const p = _projects.find(p => p.id === t.project_id);
+  return (p ? p.name + ' > ' : '') + t.title;
+}
+
+// -- LOG TAB --------------------------------------------------
+async function initLog() {
+  await loadBaseData();
+  setOptions('log-user', _users, 'id', 'name');
+  setOptions('log-task', _tasks.map(t => ({ ...t, _label: taskLabel(t) })), 'id', '_label');
+  document.getElementById('log-date').value = today();
+}
+
+async function submitLog() {
+  const user_id = document.getElementById('log-user').value;
+  const task_id = document.getElementById('log-task').value;
+  const date    = document.getElementById('log-date').value;
+  const hours   = parseFloat(document.getElementById('log-hours').value);
+  const notes   = document.getElementById('log-notes').value.trim() || null;
+
+  if (!date)        { toast('Please pick a date', true); return; }
+  if (!hours || hours <= 0) { toast('Please enter hours', true); return; }
+
+  const btn = document.getElementById('log-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await api('/time-entries/', {
+      method: 'POST',
+      body: JSON.stringify({ user_id, task_id, date, hours, notes }),
+    });
+    toast('OK ' + hours + 'h logged');
+    document.getElementById('log-hours').value = '';
+    document.getElementById('log-notes').value = '';
+    // Reset history so it reloads next visit
+    delete _inited['history'];
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Log Hours';
+  }
+}
+
+// -- HISTORY TAB ----------------------------------------------
+async function initHistory() {
+  await loadBaseData();
+  const sel = document.getElementById('f-task');
+  sel.innerHTML = '<option value="">All tasks</option>' +
+    _tasks.map(t => `<option value="${t.id}">${taskLabel(t)}</option>`).join('');
+  await loadHistory();
+}
+
+async function loadHistory() {
+  const task_id   = document.getElementById('f-task').value;
+  const date_from = document.getElementById('f-from').value;
+  const date_to   = document.getElementById('f-to').value;
+
+  const p = new URLSearchParams();
+  if (task_id)   p.set('task_id',   task_id);
+  if (date_from) p.set('date_from', date_from);
+  if (date_to)   p.set('date_to',   date_to);
+  const qs = p.toString() ? '?' + p : '';
+
+  const [entries, summary] = await Promise.all([
+    api('/time-entries/' + qs),
+    api('/time-entries/summary' + qs),
+  ]);
+
+  document.getElementById('h-total').textContent = summary.total_hours.toFixed(1) + 'h';
+  document.getElementById('h-count').textContent =
+    summary.entry_count + ' entr' + (summary.entry_count === 1 ? 'y' : 'ies');
+
+  const list = document.getElementById('history-list');
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon"></div><div class="empty-text">No entries yet</div></div>';
+    return;
+  }
+
+  list.innerHTML = entries.map(e => {
+    const user = _users.find(u => u.id === e.user_id);
+    const task = _tasks.find(t => t.id === e.task_id);
+    const proj = _projects.find(p => task && p.id === task.project_id);
+    return `
+    <div class="card">
+      <div class="entry-row">
+        <div>
+          <div class="entry-title">${task ? task.title : 'Unknown task'}</div>
+          <div class="entry-sub">${proj ? proj.name + '  -  ' : ''}${user ? user.name : ''}</div>
+          <div class="entry-sub">${fmtDate(e.date)}${e.notes ? '  -  ' + e.notes : ''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:12px">
+          <div class="entry-hours">${e.hours}h</div>
+          <button class="delete-btn" onclick="deleteEntry('${e.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this time entry?')) return;
+  try {
+    await api('/time-entries/' + id, { method: 'DELETE' });
+    toast('Entry deleted');
+    await loadHistory();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+// -- PROJECTS TAB ---------------------------------------------
+async function initProjects() {
+  await loadBaseData();
+
+  // Populate create-form dropdowns
+  const teams = await api('/teams/');
+  setOptions('np-team',    teams,     'id', 'name');
+  setOptions('nt-project', _projects, 'id', 'name');
+
+  const list = document.getElementById('projects-list');
+
+  if (!_projects.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon"></div><div class="empty-text">No projects yet</div></div>';
+    return;
+  }
+
+  const statusClass  = { active: 'b-green', draft: 'b-orange', archived: 'b-gray' };
+  const taskBadge    = { todo: 'b-orange', in_progress: 'b-blue', done: 'b-green' };
+  const priorityBadge = { high: 'b-red', medium: 'b-orange', low: 'b-gray' };
+
+  list.innerHTML = _projects.map(p => {
+    const tasks = _tasks.filter(t => t.project_id === p.id);
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${tasks.length ? 12 : 4}px">
+        <div style="font-size:18px;font-weight:800">${p.name}</div>
+        <span class="badge ${statusClass[p.status] || 'b-gray'}">${p.status}</span>
+      </div>
+      ${tasks.map(t => `
+        <div class="entry-row">
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:600">${t.title}</div>
+            <div style="margin-top:5px;display:flex;gap:6px">
+              <span class="badge ${taskBadge[t.status] || 'b-gray'}">${t.status.replace('_', ' ')}</span>
+              <span class="badge ${priorityBadge[t.priority] || 'b-gray'}">${t.priority}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px">
+            <button class="edit-btn" onclick="editTask('${t.id}')" style="flex:none;padding:6px 10px">Edit</button>
+            <button class="del-btn" onclick="deleteTask('${t.id}')" style="flex:none;padding:6px 10px">Del</button>
+          </div>
+        </div>`).join('')}
+      ${!tasks.length ? '<div style="color:#8E8E93;font-size:14px;margin-bottom:4px">No tasks yet</div>' : ''}
+      <div class="action-row">
+        <button class="edit-btn" onclick="editProject('${p.id}')">Edit Project</button>
+        <button class="del-btn" onclick="deleteProject('${p.id}')">Delete Project</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// -- TEAM TAB -------------------------------------------------
+async function initTeam() {
+  await loadBaseData();
+  const teams = await api('/teams/');
+
+  // Populate owner dropdown for new-team form
+  setOptions('nteam-owner', _users, 'id', 'name');
+  const roleClass = { admin: 'b-blue', member: 'b-green', viewer: 'b-gray' };
+
+  document.getElementById('team-content').innerHTML = `
+    <div class="section-header">Members</div>
+    ${_users.map(u => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:17px;font-weight:700">${u.name}</div>
+            <div style="color:#6C6C70;font-size:13px;margin-top:2px">${u.email}</div>
+          </div>
+          <span class="badge ${roleClass[u.role] || 'b-gray'}">${u.role}</span>
+        </div>
+        <div class="action-row">
+          <button class="edit-btn" onclick="editMember('${u.id}')">Edit</button>
+          <button class="del-btn" onclick="deleteMember('${u.id}')">Delete</button>
+        </div>
+      </div>`).join('')}
+
+    <div class="section-header">Teams</div>
+    ${teams.map(t => {
+      const owner = _users.find(u => u.id === t.owner_id);
+      const memberNames = t.member_ids.map(mid => { const m = _users.find(u => u.id === mid); return m ? m.name : null; }).filter(Boolean);
+      return `
+      <div class="card">
+        <div style="font-size:18px;font-weight:800;margin-bottom:8px">${t.name}</div>
+        <div style="color:#6C6C70;font-size:14px">Owner: ${owner ? owner.name : '-'}</div>
+        <div style="color:#6C6C70;font-size:14px;margin-top:2px">Members: ${memberNames.length ? memberNames.join(', ') : 'none'}</div>
+        <div class="action-row">
+          <button class="edit-btn" onclick="editTeam('${t.id}')">Edit</button>
+          <button class="add-member-btn" onclick="openAddMemberToTeam('${t.id}')">+ Member</button>
+          <button class="del-btn" onclick="deleteTeam('${t.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+// -- TOGGLE FORM ----------------------------------------------
+async function toggleForm(id) {
+  const el = document.getElementById(id);
+  const opening = !el.classList.contains('open');
+  el.classList.toggle('open');
+
+  if (!opening) return;
+
+  // Refresh dropdowns with latest data every time a form is opened
+  try {
+    if (id === 'new-project-form') {
+      const teams = await api('/teams/');
+      if (!teams.length) {
+        toast('Create a team first (Team tab)', true);
+        el.classList.remove('open');
+        return;
+      }
+      setOptions('np-team', teams, 'id', 'name');
+    } else if (id === 'new-task-form') {
+      const projects = await api('/projects/');
+      if (!projects.length) {
+        toast('Create a project first', true);
+        el.classList.remove('open');
+        return;
+      }
+      setOptions('nt-project', projects, 'id', 'name');
+    } else if (id === 'new-team-form') {
+      const users = await api('/users/');
+      if (!users.length) {
+        toast('Create a member first', true);
+        el.classList.remove('open');
+        return;
+      }
+      setOptions('nteam-owner', users, 'id', 'name');
+    }
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE MEMBER --------------------------------------------
+async function submitCreateMember() {
+  const name  = document.getElementById('nm-name').value.trim();
+  const email = document.getElementById('nm-email').value.trim();
+  const role  = document.getElementById('nm-role').value;
+  if (!name || !email) { toast('Name and email are required', true); return; }
+  try {
+    await api('/users/', { method: 'POST', body: JSON.stringify({ name, email, role }) });
+    toast('Member added');
+    document.getElementById('nm-name').value = '';
+    document.getElementById('nm-email').value = '';
+    document.getElementById('new-member-form').classList.remove('open');
+    delete _inited['team'];
+    delete _inited['log'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE TEAM ----------------------------------------------
+async function submitCreateTeam() {
+  const name     = document.getElementById('nteam-name').value.trim();
+  const owner_id = document.getElementById('nteam-owner').value;
+  if (!name) { toast('Team name is required', true); return; }
+  try {
+    await api('/teams/', { method: 'POST', body: JSON.stringify({ name, owner_id }) });
+    toast('Team created');
+    document.getElementById('nteam-name').value = '';
+    document.getElementById('new-team-form').classList.remove('open');
+    delete _inited['team'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE PROJECT -------------------------------------------
+async function submitCreateProject() {
+  const name    = document.getElementById('np-name').value.trim();
+  const team_id = document.getElementById('np-team').value;
+  const status  = document.getElementById('np-status').value;
+  if (!name) { toast('Project name is required', true); return; }
+  try {
+    await api('/projects/', { method: 'POST', body: JSON.stringify({ name, team_id, status }) });
+    toast('Project created');
+    document.getElementById('np-name').value = '';
+    document.getElementById('new-project-form').classList.remove('open');
+    delete _inited['projects'];
+    delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- CREATE TASK ----------------------------------------------
+async function submitCreateTask() {
+  const title      = document.getElementById('nt-title').value.trim();
+  const project_id = document.getElementById('nt-project').value;
+  const priority   = document.getElementById('nt-priority').value;
+  if (!title) { toast('Task title is required', true); return; }
+  try {
+    await api('/tasks/', { method: 'POST', body: JSON.stringify({ title, project_id, priority }) });
+    toast('Task created');
+    document.getElementById('nt-title').value = '';
+    document.getElementById('new-task-form').classList.remove('open');
+    delete _inited['projects'];
+    delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- MODAL ----------------------------------------------------
+let _modalSave = null;
+
+function openModal(title, bodyHTML, onSave) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  const btn = document.getElementById('modal-save');
+  btn.disabled = false;
+  btn.textContent = 'Save';
+  _modalSave = onSave;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  _modalSave = null;
+}
+
+async function modalSave() {
+  if (!_modalSave) return;
+  const btn = document.getElementById('modal-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await _modalSave();
+    closeModal();
+  } catch(e) {
+    toast(e.message, true);
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+// -- EDIT / DELETE MEMBERS ------------------------------------
+async function editMember(id) {
+  const u = await api('/users/' + id);
+  openModal('Edit Member', `
+    <div class="form-group"><label>Name</label>
+      <input type="text" id="em-name" value="${u.name.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="form-group"><label>Email</label>
+      <input type="text" id="em-email" value="${u.email.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="form-group"><label>Role</label>
+      <div class="select-wrap"><select id="em-role">
+        <option value="admin"${u.role==='admin'?' selected':''}>Admin</option>
+        <option value="member"${u.role==='member'?' selected':''}>Member</option>
+        <option value="viewer"${u.role==='viewer'?' selected':''}>Viewer</option>
+      </select></div>
+    </div>
+  `, async () => {
+    const name  = document.getElementById('em-name').value.trim();
+    const email = document.getElementById('em-email').value.trim();
+    const role  = document.getElementById('em-role').value;
+    if (!name || !email) throw new Error('Name and email are required');
+    await api('/users/' + id, { method: 'PATCH', body: JSON.stringify({ name, email, role }) });
+    toast('Member updated');
+    delete _inited['team']; delete _inited['log'];
+    await initTeam();
+  });
+}
+
+async function deleteMember(id) {
+  const u = await api('/users/' + id);
+  if (!confirm('Delete member "' + u.name + '"? This cannot be undone.')) return;
+  try {
+    await api('/users/' + id, { method: 'DELETE' });
+    toast('Member deleted');
+    delete _inited['team']; delete _inited['log'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- EDIT / DELETE TEAMS --------------------------------------
+async function editTeam(id) {
+  const t = await api('/teams/' + id);
+  openModal('Edit Team', `
+    <div class="form-group"><label>Team Name</label>
+      <input type="text" id="et-name" value="${t.name.replace(/"/g,'&quot;')}">
+    </div>
+  `, async () => {
+    const name = document.getElementById('et-name').value.trim();
+    if (!name) throw new Error('Team name is required');
+    await api('/teams/' + id, { method: 'PATCH', body: JSON.stringify({ name }) });
+    toast('Team updated');
+    delete _inited['team'];
+    await initTeam();
+  });
+}
+
+async function deleteTeam(id) {
+  const t = await api('/teams/' + id);
+  if (!confirm('Delete team "' + t.name + '"? Projects in this team will lose their team link.')) return;
+  try {
+    await api('/teams/' + id, { method: 'DELETE' });
+    toast('Team deleted');
+    delete _inited['team'];
+    await initTeam();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function openAddMemberToTeam(teamId) {
+  try {
+    const [users, team] = await Promise.all([api('/users/'), api('/teams/' + teamId)]);
+    const available = users.filter(u => !team.member_ids.includes(u.id));
+    if (!available.length) { toast('All members are already in this team'); return; }
+    openModal('Add Member to Team', `
+      <div class="form-group"><label>Member</label>
+        <div class="select-wrap"><select id="atm-user">
+          ${available.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
+        </select></div>
+      </div>
+    `, async () => {
+      const user_id = document.getElementById('atm-user').value;
+      await api('/teams/' + teamId + '/members', { method: 'POST', body: JSON.stringify({ user_id }) });
+      toast('Member added to team');
+      delete _inited['team'];
+      await initTeam();
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- EDIT / DELETE PROJECTS -----------------------------------
+async function editProject(id) {
+  const p = await api('/projects/' + id);
+  openModal('Edit Project', `
+    <div class="form-group"><label>Project Name</label>
+      <input type="text" id="ep-name" value="${p.name.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="form-group"><label>Status</label>
+      <div class="select-wrap"><select id="ep-status">
+        <option value="active"${p.status==='active'?' selected':''}>Active</option>
+        <option value="draft"${p.status==='draft'?' selected':''}>Draft</option>
+        <option value="archived"${p.status==='archived'?' selected':''}>Archived</option>
+      </select></div>
+    </div>
+  `, async () => {
+    const name   = document.getElementById('ep-name').value.trim();
+    const status = document.getElementById('ep-status').value;
+    if (!name) throw new Error('Project name is required');
+    await api('/projects/' + id, { method: 'PATCH', body: JSON.stringify({ name, status }) });
+    toast('Project updated');
+    delete _inited['projects']; delete _inited['log'];
+    await initProjects();
+  });
+}
+
+async function deleteProject(id) {
+  const p = await api('/projects/' + id);
+  if (!confirm('Delete project "' + p.name + '"? All its tasks will also be deleted.')) return;
+  try {
+    await api('/projects/' + id, { method: 'DELETE' });
+    toast('Project deleted');
+    delete _inited['projects']; delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- EDIT / DELETE TASKS --------------------------------------
+async function editTask(id) {
+  const t = await api('/tasks/' + id);
+  openModal('Edit Task', `
+    <div class="form-group"><label>Title</label>
+      <input type="text" id="etask-title" value="${t.title.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="form-group"><label>Status</label>
+      <div class="select-wrap"><select id="etask-status">
+        <option value="todo"${t.status==='todo'?' selected':''}>Todo</option>
+        <option value="in_progress"${t.status==='in_progress'?' selected':''}>In Progress</option>
+        <option value="done"${t.status==='done'?' selected':''}>Done</option>
+      </select></div>
+    </div>
+    <div class="form-group"><label>Priority</label>
+      <div class="select-wrap"><select id="etask-priority">
+        <option value="high"${t.priority==='high'?' selected':''}>High</option>
+        <option value="medium"${t.priority==='medium'?' selected':''}>Medium</option>
+        <option value="low"${t.priority==='low'?' selected':''}>Low</option>
+      </select></div>
+    </div>
+  `, async () => {
+    const title    = document.getElementById('etask-title').value.trim();
+    const status   = document.getElementById('etask-status').value;
+    const priority = document.getElementById('etask-priority').value;
+    if (!title) throw new Error('Title is required');
+    await api('/tasks/' + id, { method: 'PATCH', body: JSON.stringify({ title, status, priority }) });
+    toast('Task updated');
+    delete _inited['projects']; delete _inited['log'];
+    await initProjects();
+  });
+}
+
+async function deleteTask(id) {
+  const t = await api('/tasks/' + id);
+  if (!confirm('Delete task "' + t.title + '"?')) return;
+  try {
+    await api('/tasks/' + id, { method: 'DELETE' });
+    toast('Task deleted');
+    delete _inited['projects']; delete _inited['log'];
+    await initProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// -- TAB SWITCHING --------------------------------------------
+const tabInits = { log: initLog, history: initHistory, projects: initProjects, team: initTeam };
+
+async function switchTab(name) {
+  if (_activeTab === name) return;
+  _activeTab = name;
+
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+
+  if (!_inited[name]) {
+    _inited[name] = true;
+    await tabInits[name]();
+  }
+}
+
+// -- Boot -----------------------------------------------------
+_inited['log'] = true;
+initLog().catch(e => toast('Failed to load: ' + e.message, true));
+</script>
+</body>
+</html>
